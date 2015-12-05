@@ -19,7 +19,7 @@ static void j3p_send_state_byte_start_bit (struct j3p_send_fsm *fsm) {
 static void j3p_send_state_byte (struct j3p_send_fsm *fsm) {
   fsm->state = J3P_SEND_STATE_BYTE;
   fsm->bits_left = 8;
-  fsm->cur_byte = 0x3b;
+  fsm->cur_byte = *fsm->buf;
 }
 
 static void j3p_send_state_byte_stop_bit (struct j3p_send_fsm *fsm) {
@@ -76,7 +76,14 @@ static void j3p_send_on_rising_byte (struct j3p_send_fsm *fsm) {
 static void j3p_send_on_rising_byte_stop_bit (struct j3p_send_fsm *fsm) {
   fsm->line_up ();
 
-  j3p_send_state_done (fsm);
+  fsm->bytes_left--;
+  fsm->buf++;
+
+  if (fsm->bytes_left == 0) {
+    j3p_send_state_done (fsm);
+  } else {
+    j3p_send_state_byte_start_bit (fsm);
+  }
 }
 
 static void j3p_send_on_rising_done (struct j3p_send_fsm *fsm) {
@@ -111,19 +118,17 @@ void j3p_send_on_rising (struct j3p_send_fsm *fsm) {
   }
 }
 
-/* Reset the FSM to its initial state */
-
-void j3p_send_reset (struct j3p_send_fsm *fsm) {
-  j3p_send_state_break (fsm);
-}
-
 /* One time initialization */
 
 void j3p_send_init (struct j3p_send_fsm *fsm,
                     j3p_send_set_line_op line_up,
-                    j3p_send_set_line_op line_down) {
+                    j3p_send_set_line_op line_down,
+                    uint8_t bytes_out,
+                    uint8_t *send_buf) {
   fsm->line_up = line_up;
   fsm->line_down = line_down;
+  fsm->bytes_left = bytes_out;
+  fsm->buf = send_buf;
 
-  j3p_send_reset (fsm);
+  j3p_send_state_break (fsm);
 }

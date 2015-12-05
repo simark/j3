@@ -6,7 +6,7 @@
 typedef uint8_t (*j3p_recv_read_line_op)(void);
 
 struct j3p_recv_fsm {
-	j3p_recv_read_line_op read_line;
+  j3p_recv_read_line_op read_line;
 };
 
 void j3p_recv_init (struct j3p_recv_fsm *fsm,
