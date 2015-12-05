@@ -1,6 +1,6 @@
 # sources
-C_SRC = slavecube.c j3p-master.c j3p-slave.c j3p-send.c j3p-recv.c
-H_SRC = config.h j3p.h j3p-master.h j3p-slave.h j3p-send.h j3p-recv.h
+C_SRC = $(wildcard *.c)
+H_SRC = $(wildcard *.h)
 
 # target MCU
 MCU = attiny24a
@@ -28,7 +28,8 @@ RM = rm -f
 AR = avr-ar
 
 # shorts
-O_FILES = $(subst .c,.o,$(C_SRC))
+O_FILES = $(C_SRC:.c=.o)
+D_FILES = $(O_FILES:.o=.d)
 
 # C flags
 CFLAGS = -mmcu=$(MCU) -O$(OPTLEVEL) -fshort-enums \
@@ -59,7 +60,10 @@ program: $(TARGET_HEX)
 # objects from C files
 %.o : %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) -MM $(CFLAGS) $< > $*.d
 
 # clean target
 clean:
-	$(RM) $(TARGET_OUT) $(TARGET_HEX) $(TARGET_MAP) $(O_FILES)
+	$(RM) $(TARGET_OUT) $(TARGET_HEX) $(TARGET_MAP) $(O_FILES) $(D_FILES)
+
+-include $(O_FILES:.o=.d)
