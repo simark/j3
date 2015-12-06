@@ -27,7 +27,6 @@ void j3p_recv_init (struct j3p_recv_fsm *fsm,
                     j3p_read_line_op read_line,
                     uint8_t bytes_in,
                     uint8_t *recv_buf);
-void j3p_recv_reset (struct j3p_recv_fsm *fsm);
 void j3p_recv_on_falling (struct j3p_recv_fsm *fsm);
 
 static inline uint8_t j3p_recv_is_done (struct j3p_recv_fsm *fsm)
