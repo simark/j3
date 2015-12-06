@@ -1,6 +1,6 @@
 #include "j3p-master.h"
 
-/* J3P master state transitions */
+/* state transitions */
 
 static void j3p_master_state_idle (struct j3p_master_ctx *ctx)
 {
@@ -33,7 +33,7 @@ static void j3p_master_state_receiving (struct j3p_master_ctx *ctx)
   j3p_recv_init (&ctx->recv, ctx->read_line, ctx->bytes_in, ctx->buf);
 }
 
-/* J3P master events */
+/* clock events */
 
 static void j3p_master_on_rising_idle (struct j3p_master_ctx *ctx)
 {
@@ -132,13 +132,14 @@ void j3p_master_on_falling (struct j3p_master_ctx *ctx)
    }
 }
 
+/* initiate a query */
 
 void j3p_master_query (struct j3p_master_ctx *ctx)
 {
   j3p_master_state_break (ctx);
 }
 
-/* One time initialization of the master context. */
+/* one-time initialization */
 
 void j3p_master_init (struct j3p_master_ctx *ctx,
                       j3p_set_line_op line_up,

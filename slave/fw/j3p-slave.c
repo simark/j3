@@ -1,7 +1,7 @@
 #include "j3p-slave.h"
 #include "j3p-common.h"
 
-/* J3P slave state transitions */
+/* state transitions */
 
 static void j3p_slave_state_idle (struct j3p_slave_ctx *ctx)
 {
@@ -20,7 +20,7 @@ static void j3p_slave_state_sending (struct j3p_slave_ctx *ctx)
   j3p_send_init (&ctx->send, ctx->line_up, ctx->line_down, ctx->bytes_out, ctx->buf);
 }
 
-/* J3P slave events */
+/* clock events */
 
 static void j3p_slave_on_rising_sending (struct j3p_slave_ctx *ctx)
 {
@@ -94,7 +94,7 @@ void j3p_slave_on_falling (struct j3p_slave_ctx *ctx)
  }
 }
 
-/* One time initialization of the slave context. */
+/* one-time initialization */
 
 void j3p_slave_init (struct j3p_slave_ctx *ctx,
                      j3p_set_line_op line_up,

@@ -1,5 +1,7 @@
 #include "j3p-recv.h"
 
+/* state transitions */
+
 static void j3p_recv_state_start_bit (struct j3p_recv_fsm *fsm)
 {
   fsm->state = J3P_RECV_STATE_START_BIT;
@@ -26,6 +28,8 @@ static void j3p_recv_state_error (struct j3p_recv_fsm *fsm)
 {
   fsm->state = J3P_RECV_STATE_ERR;
 }
+
+/* clock events */
 
 static void j3p_recv_on_falling_start_bit (struct j3p_recv_fsm *fsm)
 {
@@ -93,6 +97,8 @@ void j3p_recv_on_falling (struct j3p_recv_fsm *fsm)
     break;
   }
 }
+
+/* initialization (once for each fsm run) */
 
 void j3p_recv_init (struct j3p_recv_fsm *fsm,
                     j3p_read_line_op read_line,

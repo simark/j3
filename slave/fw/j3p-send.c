@@ -1,6 +1,6 @@
 #include "j3p-send.h"
 
-/* J3P send state transitions */
+/* state transitions */
 
 static void j3p_send_state_start_bit (struct j3p_send_fsm *fsm)
 {
@@ -24,7 +24,7 @@ static void j3p_send_state_done (struct j3p_send_fsm *fsm)
   fsm->state = J3P_SEND_STATE_DONE;
 }
 
-/* J3P send events */
+/* clock events */
 
 static void j3p_send_on_rising_start_bit (struct j3p_send_fsm *fsm)
 {
@@ -88,7 +88,7 @@ void j3p_send_on_rising (struct j3p_send_fsm *fsm)
   }
 }
 
-/* One time initialization */
+/* initialization (once for each fsm run) */
 
 void j3p_send_init (struct j3p_send_fsm *fsm,
                     j3p_set_line_op line_up,
