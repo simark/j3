@@ -15,7 +15,9 @@
 #define J3P_BUFSIZE max(J3P_MASTER_TO_SLAVE_NUM_BYTES, J3P_SLAVE_TO_MASTER_NUM_BYTES)
 
 static struct j3p_master_ctx j3p_master_ctx_instance;
-static uint8_t j3p_buf[J3P_BUFSIZE];
+static struct j3p_slave_ctx j3p_slave_ctx_instance;
+static uint8_t j3p_master_buf[J3P_BUFSIZE];
+static uint8_t j3p_slave_buf[J3P_BUFSIZE];
 
 static void j3p_master_line_up (void)
 {
@@ -32,26 +34,44 @@ static uint8_t j3p_master_read_line (void)
   return (J3P_MASTER_PIN & J3P_MASTER_MASK) != 0;
 }
 
+static void j3p_slave_line_up (void)
+{
+  J3P_SLAVE_DDR &= ~J3P_SLAVE_MASK;
+}
+
+static void j3p_slave_line_down (void)
+{
+  J3P_SLAVE_DDR |= J3P_SLAVE_MASK;
+}
+
+static uint8_t j3p_slave_read_line (void)
+{
+  return (J3P_SLAVE_PIN & J3P_SLAVE_MASK) != 0;
+}
+
 static uint16_t neighbour_query_cnt = 0;
 
 static void rising (void) {
   j3p_master_on_rising (&j3p_master_ctx_instance);
+  j3p_slave_on_rising (&j3p_slave_ctx_instance);
 
   neighbour_query_cnt++;
 
   if (neighbour_query_cnt == J3P_POLL_CNT) {
-    j3p_buf[0] = 'A';
-    j3p_buf[1] = 'B';
-    j3p_buf[2] = 'C';
-    j3p_buf[3] = 'D';
-    j3p_buf[4] = 'E';
+    j3p_master_buf[0] = 'A';
+    j3p_master_buf[1] = 'B';
+    j3p_master_buf[2] = 'C';
+    j3p_master_buf[3] = 'D';
+    j3p_master_buf[4] = 'E';
     j3p_master_query (&j3p_master_ctx_instance);
     neighbour_query_cnt = 0;
   }
 }
 
 static void falling (void) {
+
   j3p_master_on_falling (&j3p_master_ctx_instance);
+  j3p_slave_on_falling (&j3p_slave_ctx_instance);
 }
 
 ISR(EXT_INT0_vect) {
@@ -68,6 +88,14 @@ ISR(EXT_INT0_vect) {
 
 static void j3p_master_recv_complete (void) {
 
+}
+
+static void j3p_slave_query (uint8_t *buf) {
+  uint8_t i;
+
+  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
+    buf[i]++;
+  }
 }
 
 /*
@@ -88,8 +116,16 @@ static void init_j3p (void)
                    j3p_master_read_line,
                    J3P_MASTER_TO_SLAVE_NUM_BYTES,
                    J3P_SLAVE_TO_MASTER_NUM_BYTES,
-                   j3p_buf,
+                   j3p_master_buf,
                    j3p_master_recv_complete);
+  j3p_slave_init (&j3p_slave_ctx_instance,
+                  j3p_slave_line_up,
+                  j3p_slave_line_down,
+                  j3p_slave_read_line,
+                  J3P_MASTER_TO_SLAVE_NUM_BYTES,
+                  J3P_SLAVE_TO_MASTER_NUM_BYTES,
+                  j3p_slave_buf,
+                  j3p_slave_query);
 }
 
 static void init_master_clock_listen (void)
@@ -112,6 +148,7 @@ int main (void)
 {
   /* Debug pin */
   DDRB |= _BV(PB0);
+  DDRA |= _BV(PA7);
 
   init_master_clock_listen ();
   init_j3p ();

@@ -3,10 +3,7 @@
 
 #include <avr/io.h>
 
-typedef void (*j3p_send_set_line_op) (void);
-
-#define J3P_SEND_BREAK_NUM_BITS 20
-#define J3P_SEND_MARK_AFTER_BREAK_NUM_BITS 4
+#include "j3p-common.h"
 
 struct j3p_send_fsm {
   enum {
@@ -18,7 +15,7 @@ struct j3p_send_fsm {
     J3P_SEND_STATE_DONE,
   } state;
 
-  j3p_send_set_line_op line_up, line_down;
+  j3p_set_line_op line_up, line_down;
   uint8_t *buf;
   uint8_t bytes_left;
 
@@ -27,10 +24,16 @@ struct j3p_send_fsm {
 };
 
 void j3p_send_init (struct j3p_send_fsm *fsm,
-                    j3p_send_set_line_op line_up,
-                    j3p_send_set_line_op line_down,
+                    j3p_set_line_op line_up,
+                    j3p_set_line_op line_down,
                     uint8_t bytes_out,
                     uint8_t *send_buf);
 void j3p_send_on_rising (struct j3p_send_fsm *fsm);
+
+static inline uint8_t j3p_send_is_done (struct j3p_send_fsm *fsm)
+{
+  return fsm->state == J3P_SEND_STATE_DONE;
+}
+
 
 #endif /* J3P_SEND_H */
