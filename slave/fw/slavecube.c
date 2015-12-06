@@ -58,11 +58,6 @@ static void rising (void) {
   neighbour_query_cnt++;
 
   if (neighbour_query_cnt == J3P_POLL_CNT) {
-    j3p_master_buf[0] = 'A';
-    j3p_master_buf[1] = 'B';
-    j3p_master_buf[2] = 'C';
-    j3p_master_buf[3] = 'D';
-    j3p_master_buf[4] = 'E';
     j3p_master_query (&j3p_master_ctx_instance);
     neighbour_query_cnt = 0;
   }
@@ -86,8 +81,12 @@ ISR(EXT_INT0_vect) {
   PORTB &= ~_BV(PB0);
 }
 
-static void j3p_master_recv_complete (void) {
+static void j3p_master_recv_complete (uint8_t *buf) {
+  uint8_t i;
 
+  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
+    buf[i]++;
+  }
 }
 
 static void j3p_slave_query (uint8_t *buf) {
@@ -126,6 +125,11 @@ static void init_j3p (void)
                   J3P_SLAVE_TO_MASTER_NUM_BYTES,
                   j3p_slave_buf,
                   j3p_slave_query);
+  j3p_master_buf[0] = 'A';
+  j3p_master_buf[1] = 'B';
+  j3p_master_buf[2] = 'C';
+  j3p_master_buf[3] = 'D';
+  j3p_master_buf[4] = 'E';
 }
 
 static void init_master_clock_listen (void)

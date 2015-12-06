@@ -2,18 +2,8 @@
 
 /* J3P send state transitions */
 
-static void j3p_send_state_break (struct j3p_send_fsm *fsm) {
-  fsm->state = J3P_SEND_STATE_BREAK;
-  fsm->bits_left = J3P_BREAK_NUM_BITS;
-}
-
-static void j3p_send_state_mark_after_break (struct j3p_send_fsm *fsm) {
-  fsm->state = J3P_SEND_STATE_MARK_AFTER_BREAK;
-  fsm->bits_left = J3P_MARK_AFTER_BREAK_NUM_BITS;
-}
-
-static void j3p_send_state_byte_start_bit (struct j3p_send_fsm *fsm) {
-  fsm->state = J3P_SEND_STATE_BYTE_START_BIT;
+static void j3p_send_state_start_bit (struct j3p_send_fsm *fsm) {
+  fsm->state = J3P_SEND_STATE_START_BIT;
 }
 
 static void j3p_send_state_byte (struct j3p_send_fsm *fsm) {
@@ -23,7 +13,7 @@ static void j3p_send_state_byte (struct j3p_send_fsm *fsm) {
 }
 
 static void j3p_send_state_byte_stop_bit (struct j3p_send_fsm *fsm) {
-  fsm->state = J3P_SEND_STATE_BYTE_STOP_BIT;
+  fsm->state = J3P_SEND_STATE_STOP_BIT;
 }
 
 static void j3p_send_state_done (struct j3p_send_fsm *fsm) {
@@ -32,27 +22,7 @@ static void j3p_send_state_done (struct j3p_send_fsm *fsm) {
 
 /* J3P send events */
 
-static void j3p_send_on_rising_break (struct j3p_send_fsm *fsm) {
-  fsm->line_down ();
-
-  fsm->bits_left--;
-
-  if (fsm->bits_left == 0) {
-    j3p_send_state_mark_after_break (fsm);
-  }
-}
-
-static void j3p_send_on_rising_mark_after_break (struct j3p_send_fsm *fsm) {
-  fsm->line_up ();
-
-  fsm->bits_left--;
-
-  if (fsm->bits_left == 0) {
-    j3p_send_state_byte_start_bit (fsm);
-  }
-}
-
-static void j3p_send_on_rising_byte_start_bit (struct j3p_send_fsm *fsm) {
+static void j3p_send_on_rising_start_bit (struct j3p_send_fsm *fsm) {
   fsm->line_down ();
 
   j3p_send_state_byte (fsm);
@@ -75,13 +45,13 @@ static void j3p_send_on_rising_byte (struct j3p_send_fsm *fsm) {
   }
 }
 
-static void j3p_send_on_rising_byte_stop_bit (struct j3p_send_fsm *fsm) {
+static void j3p_send_on_rising_stop_bit (struct j3p_send_fsm *fsm) {
   fsm->line_up ();
 
   if (fsm->bytes_left == 0) {
     j3p_send_state_done (fsm);
   } else {
-    j3p_send_state_byte_start_bit (fsm);
+    j3p_send_state_start_bit (fsm);
   }
 }
 
@@ -91,24 +61,16 @@ static void j3p_send_on_rising_done (struct j3p_send_fsm *fsm) {
 
 void j3p_send_on_rising (struct j3p_send_fsm *fsm) {
   switch (fsm->state) {
-  case J3P_SEND_STATE_BREAK:
-    j3p_send_on_rising_break (fsm);
-    break;
-
-  case J3P_SEND_STATE_MARK_AFTER_BREAK:
-    j3p_send_on_rising_mark_after_break (fsm);
-    break;
-
-  case J3P_SEND_STATE_BYTE_START_BIT:
-    j3p_send_on_rising_byte_start_bit (fsm);
+  case J3P_SEND_STATE_START_BIT:
+    j3p_send_on_rising_start_bit (fsm);
     break;
 
   case J3P_SEND_STATE_BYTE:
     j3p_send_on_rising_byte (fsm);
     break;
 
-  case J3P_SEND_STATE_BYTE_STOP_BIT:
-    j3p_send_on_rising_byte_stop_bit (fsm);
+  case J3P_SEND_STATE_STOP_BIT:
+    j3p_send_on_rising_stop_bit (fsm);
     break;
 
   case J3P_SEND_STATE_DONE:
@@ -129,5 +91,5 @@ void j3p_send_init (struct j3p_send_fsm *fsm,
   fsm->bytes_left = bytes_out;
   fsm->buf = send_buf;
 
-  j3p_send_state_break (fsm);
+  j3p_send_state_start_bit (fsm);
 }

@@ -5,16 +5,24 @@
 #include "j3p-send.h"
 #include "j3p-recv.h"
 
-typedef void (*j3p_master_query_complete_op)(void);
+typedef void (*j3p_master_query_complete_op)(uint8_t *);
 
 struct j3p_master_ctx {
   enum {
     J3P_MASTER_STATE_IDLE,
+    J3P_MASTER_STATE_BREAK,
+    J3P_MASTER_STATE_MARK_AFTER_BREAK,
     J3P_MASTER_STATE_SENDING,
     J3P_MASTER_STATE_RECEIVING,
   } state;
 
   union {
+    struct {
+      uint8_t bits_left;
+    } break_;
+    struct {
+      uint8_t bits_left;
+    } mark_after_break;
     struct j3p_send_fsm send;
     struct j3p_recv_fsm recv;
   };
