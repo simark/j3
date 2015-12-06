@@ -2,7 +2,8 @@
 
 /* J3P master state transitions */
 
-static void j3p_master_state_idle (struct j3p_master_ctx *ctx) {
+static void j3p_master_state_idle (struct j3p_master_ctx *ctx)
+{
   ctx->state = J3P_MASTER_STATE_IDLE;
 }
 
@@ -12,26 +13,30 @@ static void j3p_master_state_break (struct j3p_master_ctx *ctx)
   ctx->break_.bits_left = J3P_BREAK_NUM_BITS;
 }
 
-static void j3p_master_state_mark_after_break (struct j3p_master_ctx *ctx) {
+static void j3p_master_state_mark_after_break (struct j3p_master_ctx *ctx)
+{
   ctx->state = J3P_MASTER_STATE_MARK_AFTER_BREAK;
   ctx->mark_after_break.bits_left = J3P_MARK_AFTER_BREAK_NUM_BITS;
 }
 
-static void j3p_master_state_sending (struct j3p_master_ctx *ctx) {
+static void j3p_master_state_sending (struct j3p_master_ctx *ctx)
+{
   ctx->state = J3P_MASTER_STATE_SENDING;
   j3p_send_init (&ctx->send,
                  ctx->line_up, ctx->line_down,
                  ctx->bytes_out, ctx->buf);
 }
 
-static void j3p_master_state_receiving (struct j3p_master_ctx *ctx) {
+static void j3p_master_state_receiving (struct j3p_master_ctx *ctx)
+{
   ctx->state = J3P_MASTER_STATE_RECEIVING;
   j3p_recv_init (&ctx->recv, ctx->read_line, ctx->bytes_in, ctx->buf);
 }
 
 /* J3P master events */
 
-static void j3p_master_on_rising_idle (struct j3p_master_ctx *ctx) {
+static void j3p_master_on_rising_idle (struct j3p_master_ctx *ctx)
+{
   /* We're idle, just keep the pin in high-z. */
   ctx->line_up();
 }
@@ -58,7 +63,8 @@ static void j3p_master_on_rising_mark_after_break (struct j3p_master_ctx *ctx)
   }
 }
 
-static void j3p_master_on_rising_sending (struct j3p_master_ctx *ctx) {
+static void j3p_master_on_rising_sending (struct j3p_master_ctx *ctx)
+{
   struct j3p_send_fsm *fsm = &ctx->send;
 
   j3p_send_on_rising (fsm);
@@ -69,7 +75,8 @@ static void j3p_master_on_rising_sending (struct j3p_master_ctx *ctx) {
 }
 
 
-void j3p_master_on_rising (struct j3p_master_ctx *ctx) {
+void j3p_master_on_rising (struct j3p_master_ctx *ctx)
+{
   switch (ctx->state) {
   case J3P_MASTER_STATE_IDLE:
     j3p_master_on_rising_idle (ctx);
@@ -92,7 +99,8 @@ void j3p_master_on_rising (struct j3p_master_ctx *ctx) {
   }
 }
 
-static void j3p_master_on_falling_receiving (struct j3p_master_ctx *ctx) {
+static void j3p_master_on_falling_receiving (struct j3p_master_ctx *ctx)
+{
   struct j3p_recv_fsm *fsm = &ctx->recv;
 
   j3p_recv_on_falling (fsm);
@@ -125,7 +133,8 @@ void j3p_master_on_falling (struct j3p_master_ctx *ctx)
 }
 
 
-void j3p_master_query (struct j3p_master_ctx *ctx) {
+void j3p_master_query (struct j3p_master_ctx *ctx)
+{
   j3p_master_state_break (ctx);
 }
 
@@ -137,7 +146,8 @@ void j3p_master_init (struct j3p_master_ctx *ctx,
                       j3p_read_line_op read_line,
                       uint8_t bytes_out, uint8_t bytes_in,
                       uint8_t *send_recv_buf,
-                      j3p_master_query_complete_op query_complete) {
+                      j3p_master_query_complete_op query_complete)
+{
   ctx->line_up = line_up;
   ctx->line_down = line_down;
   ctx->read_line = read_line;

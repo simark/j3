@@ -51,7 +51,8 @@ static uint8_t j3p_slave_read_line (void)
 
 static uint16_t neighbour_query_cnt = 0;
 
-static void rising (void) {
+static void rising (void)
+{
   j3p_master_on_rising (&j3p_master_ctx_instance);
   j3p_slave_on_rising (&j3p_slave_ctx_instance);
 
@@ -63,13 +64,15 @@ static void rising (void) {
   }
 }
 
-static void falling (void) {
+static void falling (void)
+{
 
   j3p_master_on_falling (&j3p_master_ctx_instance);
   j3p_slave_on_falling (&j3p_slave_ctx_instance);
 }
 
-ISR(EXT_INT0_vect) {
+ISR(EXT_INT0_vect)
+{
   PORTB |= _BV(PB0);
 
   if (MASTER_CLK_PIN & MASTER_CLK_MASK) {
@@ -81,31 +84,23 @@ ISR(EXT_INT0_vect) {
   PORTB &= ~_BV(PB0);
 }
 
-static void j3p_master_recv_complete (uint8_t *buf) {
-  uint8_t i;
-
-  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
-    buf[i]++;
-  }
-}
-
-static void j3p_slave_query (uint8_t *buf) {
-  uint8_t i;
-
-  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
-    buf[i]++;
-  }
-}
-
-/*
-static void init_timers (void)
+static void j3p_master_recv_complete (uint8_t *buf)
 {
-  // Interrupt every 100us
-  TCNT1 = 0;
-  TCCR1B |= _BV(WGM12) | _BV(CS10);
-  OCR1A = 800;
-  TIMSK1 |= _BV(OCIE1A);
-}*/
+  uint8_t i;
+
+  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
+    buf[i]++;
+  }
+}
+
+static void j3p_slave_query (uint8_t *buf)
+{
+  uint8_t i;
+
+  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
+    buf[i]++;
+  }
+}
 
 static void init_j3p (void)
 {
@@ -152,7 +147,6 @@ int main (void)
 {
   /* Debug pin */
   DDRB |= _BV(PB0);
-  DDRA |= _BV(PA7);
 
   init_master_clock_listen ();
   init_j3p ();
