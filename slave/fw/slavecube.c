@@ -68,6 +68,44 @@ static uint8_t j3p_slave_read_line (void)
   return (J3P_SLAVE_PIN & J3P_SLAVE_MASK) != 0;
 }
 
+/*
+ * Called in the master's code, when it has receive a response from the slave.
+ */
+static void slave_query_complete (uint8_t *buf)
+{
+  struct slave_to_master_data *s = (struct slave_to_master_data *) buf;
+
+  g_state.slave_has_answered = 1;
+
+  /* Copy downstream cube ids from slave message */
+  memcpy (g_state.known_downstream_cubes, s->cubes, MAX_CUBES);
+}
+
+/*
+ * Called in the master's code, when we consider the slave is not present.
+ */
+static void slave_timeout (void)
+{
+  memset (g_state.known_downstream_cubes, 0,
+          sizeof (g_state.known_downstream_cubes));
+  PORTB |= _BV(PB0);
+}
+
+/*
+ * Called in the slave's code, when we received a query from the master and
+ * should reply something.
+ */
+static void slave_query_impl (uint8_t *buf)
+{
+  /* First, read in info from the master (TODO) */
+  //struct master_to_slave_data *m2s = (struct master_to_slave_data *) buf;
+
+  /* Then, fill the buffer with our info. */
+  struct slave_to_master_data *s2m = (struct slave_to_master_data *) buf;
+  s2m->cubes[0] = g_state.my_id;
+  memcpy (s2m->cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
+}
+
 static void rising (void)
 {
   j3p_master_on_rising (&j3p_master_ctx_instance);
@@ -76,12 +114,10 @@ static void rising (void)
   g_state.slave_query_timer++;
 
   if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_VALUE) {
+    /* If we are about to send another query and the slave hasn't
+     * answered the previous one, assume he is not there. */
     if (!g_state.slave_has_answered) {
-      /* There is no slave, or it is mentally ill.  Either way, assume there
-       * is none.  */
-      memset (g_state.known_downstream_cubes, 0,
-              sizeof (g_state.known_downstream_cubes));
-      PORTB |= _BV(PB0);
+      slave_timeout ();
     } else {
       PORTB &= ~_BV(PB0);
     }
@@ -101,7 +137,7 @@ static void falling (void)
 
 ISR(EXT_INT0_vect)
 {
-  //PORTB |= _BV(PB0);
+  PORTB |= _BV(PB1);
 
   if (MASTER_CLK_PIN & MASTER_CLK_MASK) {
     rising ();
@@ -109,28 +145,7 @@ ISR(EXT_INT0_vect)
     falling ();
   }
 
-  //PORTB &= ~_BV(PB0);
-}
-
-static void j3p_master_query_complete (uint8_t *buf __attribute__ ((unused)))
-{
-  struct slave_to_master_data *s = (struct slave_to_master_data *) buf;
-
-  g_state.slave_has_answered = 1;
-
-  /* Copy downstream cube ids from slave message */
-  memcpy (g_state.known_downstream_cubes, s->cubes, MAX_CUBES);
-}
-
-static void j3p_slave_query (uint8_t *buf __attribute__ ((unused)))
-{
-  /* First, read in info from the master (TODO) */
-  //struct master_to_slave_data *m2s = (struct master_to_slave_data *) buf;
-
-  /* Then, fill the buffer with our info. */
-  struct slave_to_master_data *s2m = (struct slave_to_master_data *) buf;
-  s2m->cubes[0] = g_state.my_id;
-  memcpy (s2m->cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
+  PORTB &= ~_BV(PB1);
 }
 
 static void init_j3p (void)
@@ -142,7 +157,7 @@ static void init_j3p (void)
                    sizeof (struct master_to_slave_data),
                    sizeof (struct slave_to_master_data),
                    g_master_buf,
-                   j3p_master_query_complete);
+                   slave_query_complete);
   j3p_slave_init (&j3p_slave_ctx_instance,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
@@ -150,7 +165,7 @@ static void init_j3p (void)
                   sizeof (struct master_to_slave_data),
                   sizeof (struct slave_to_master_data),
                   g_slave_buf,
-                  j3p_slave_query);
+                  slave_query_impl);
 }
 
 static void init_master_clock_listen (void)
