@@ -6,12 +6,14 @@
 static void j3p_slave_state_idle (struct j3p_slave_ctx *ctx)
 {
   ctx->state = J3P_SLAVE_STATE_IDLE;
+  ctx->break_len = 0;
 }
 
 static void j3p_slave_state_receiving (struct j3p_slave_ctx *ctx)
 {
   ctx->state = J3P_SLAVE_STATE_RECEIVING;
   j3p_recv_init (&ctx->recv, ctx->read_line, ctx->bytes_in, ctx->buf);
+  ctx->break_len = 0;
 }
 
 static void j3p_slave_state_sending (struct j3p_slave_ctx *ctx)
@@ -48,25 +50,38 @@ void j3p_slave_on_rising(struct j3p_slave_ctx *ctx)
   }
 }
 
-static void j3p_slave_on_falling_idle (struct j3p_slave_ctx *ctx)
+static uint8_t j3p_slave_on_falling_detect_break (struct j3p_slave_ctx *ctx)
 {
   uint8_t line_value = ctx->read_line ();
 
   if (line_value) {
     if (ctx->break_len >= J3P_BREAK_NUM_BITS) {
-
-      j3p_slave_state_receiving (ctx);
-    } else {
-      ctx->break_len = 0;
+      return 1;
     }
+
+    ctx->break_len = 0;
   } else {
     ctx->break_len++;
+  }
+
+  return 0;
+}
+
+static void j3p_slave_on_falling_idle (struct j3p_slave_ctx *ctx)
+{
+  if (j3p_slave_on_falling_detect_break (ctx)) {
+    j3p_slave_state_receiving (ctx);
   }
 }
 
 static void j3p_slave_on_falling_receiving (struct j3p_slave_ctx *ctx)
 {
   struct j3p_recv_fsm *fsm = &ctx->recv;
+
+  if (j3p_slave_on_falling_detect_break (ctx)) {
+    j3p_slave_state_receiving (ctx);
+    return;
+  }
 
   j3p_recv_on_falling (fsm);
 
