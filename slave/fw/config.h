@@ -11,7 +11,7 @@
 
 /* Frequency at which we want to query our neighbour */
 #define J3P_POLL_FREQ 5 // hz
-#define J3P_POLL_CNT (MASTER_CLK_FREQ / J3P_POLL_FREQ)
+#define SLAVE_QUERY_TIMER_VALUE (MASTER_CLK_FREQ / J3P_POLL_FREQ)
 
 #define J3P_MASTER_DDR DDRA
 #define J3P_MASTER_PIN PINA

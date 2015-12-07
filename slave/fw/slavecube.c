@@ -26,15 +26,17 @@ struct slave_to_master_data {
   uint8_t cubes[MAX_CUBES];
 };
 
-struct {
+static struct {
   uint8_t known_downstream_cubes[MAX_CUBES];
-} g_cur_state;
+  uint8_t slave_has_answered;
+  uint8_t my_id;
+  uint16_t slave_query_timer;
+} g_state;
 
 #define BUFSIZE max(sizeof (struct master_to_slave_data), \
                     sizeof (struct slave_to_master_data))
 static uint8_t g_master_buf[BUFSIZE];
 static uint8_t g_slave_buf[BUFSIZE];
-static uint8_t g_my_id = 0xaa;
 
 static void j3p_master_line_up (void)
 {
@@ -66,18 +68,27 @@ static uint8_t j3p_slave_read_line (void)
   return (J3P_SLAVE_PIN & J3P_SLAVE_MASK) != 0;
 }
 
-static uint16_t neighbour_query_cnt = 0;
-
 static void rising (void)
 {
   j3p_master_on_rising (&j3p_master_ctx_instance);
   j3p_slave_on_rising (&j3p_slave_ctx_instance);
 
-  neighbour_query_cnt++;
+  g_state.slave_query_timer++;
 
-  if (neighbour_query_cnt == J3P_POLL_CNT) {
+  if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_VALUE) {
+    if (!g_state.slave_has_answered) {
+      /* There is no slave, or it is mentally ill.  Either way, assume there
+       * is none.  */
+      memset (g_state.known_downstream_cubes, 0,
+              sizeof (g_state.known_downstream_cubes));
+      PORTB |= _BV(PB0);
+    } else {
+      PORTB &= ~_BV(PB0);
+    }
+
+    g_state.slave_has_answered = 0;
     j3p_master_query (&j3p_master_ctx_instance);
-    neighbour_query_cnt = 0;
+    g_state.slave_query_timer = 0;
   }
 }
 
@@ -90,7 +101,7 @@ static void falling (void)
 
 ISR(EXT_INT0_vect)
 {
-  PORTB |= _BV(PB0);
+  //PORTB |= _BV(PB0);
 
   if (MASTER_CLK_PIN & MASTER_CLK_MASK) {
     rising ();
@@ -98,15 +109,17 @@ ISR(EXT_INT0_vect)
     falling ();
   }
 
-  PORTB &= ~_BV(PB0);
+  //PORTB &= ~_BV(PB0);
 }
 
 static void j3p_master_query_complete (uint8_t *buf __attribute__ ((unused)))
 {
   struct slave_to_master_data *s = (struct slave_to_master_data *) buf;
 
+  g_state.slave_has_answered = 1;
+
   /* Copy downstream cube ids from slave message */
-  memcpy (g_cur_state.known_downstream_cubes, s->cubes, MAX_CUBES);
+  memcpy (g_state.known_downstream_cubes, s->cubes, MAX_CUBES);
 }
 
 static void j3p_slave_query (uint8_t *buf __attribute__ ((unused)))
@@ -116,8 +129,8 @@ static void j3p_slave_query (uint8_t *buf __attribute__ ((unused)))
 
   /* Then, fill the buffer with our info. */
   struct slave_to_master_data *s2m = (struct slave_to_master_data *) buf;
-  s2m->cubes[0] = g_my_id;
-  memcpy (s2m->cubes + 1, g_cur_state.known_downstream_cubes, MAX_CUBES - 1);
+  s2m->cubes[0] = g_state.my_id;
+  memcpy (s2m->cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
 }
 
 static void init_j3p (void)
@@ -151,6 +164,13 @@ static void init_master_clock_listen (void)
   GIMSK |= _BV(INT0);
 }
 
+static void init_state (uint8_t my_id)
+{
+  memset (&g_state, 0, sizeof (g_state));
+
+  g_state.my_id = my_id;
+}
+
 static void loop (void)
 {
   for (;;);
@@ -161,8 +181,9 @@ int main (void)
   /* Debug pin */
   DDRB |= _BV(PB0);
 
-  g_my_id = eeprom_read_byte (0);
-  init_state ();
+  uint8_t my_id = eeprom_read_byte (0);
+
+  init_state (my_id);
   init_master_clock_listen ();
   init_j3p ();
 
