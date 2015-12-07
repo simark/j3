@@ -10,14 +10,28 @@
 
 #define max(a,b) (a > b ? a : b)
 
-#define J3P_MASTER_TO_SLAVE_NUM_BYTES 5
-#define J3P_SLAVE_TO_MASTER_NUM_BYTES 5
-#define J3P_BUFSIZE max(J3P_MASTER_TO_SLAVE_NUM_BYTES, J3P_SLAVE_TO_MASTER_NUM_BYTES)
-
 static struct j3p_master_ctx j3p_master_ctx_instance;
 static struct j3p_slave_ctx j3p_slave_ctx_instance;
-static uint8_t j3p_master_buf[J3P_BUFSIZE];
-static uint8_t j3p_slave_buf[J3P_BUFSIZE];
+
+#define MAX_CUBES 6
+
+struct master_to_slave_data {
+  uint8_t idx;
+  uint8_t word[6];
+};
+
+struct slave_to_master_data {
+  uint8_t cubes[6];
+};
+
+struct {
+
+} g_cur_state;
+
+#define BUFSIZE max(sizeof (struct master_to_slave_data), \
+                    sizeof (struct slave_to_master_data))
+static uint8_t g_master_buf[BUFSIZE];
+static uint8_t g_slave_buf[BUFSIZE];
 
 static void j3p_master_line_up (void)
 {
@@ -84,22 +98,14 @@ ISR(EXT_INT0_vect)
   PORTB &= ~_BV(PB0);
 }
 
-static void j3p_master_recv_complete (uint8_t *buf)
+static void j3p_master_query_complete (uint8_t *buf __attribute__ ((unused)))
 {
-  uint8_t i;
 
-  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
-    buf[i]++;
-  }
 }
 
-static void j3p_slave_query (uint8_t *buf)
+static void j3p_slave_query (uint8_t *buf __attribute__ ((unused)))
 {
-  uint8_t i;
 
-  for (i = 0; i < J3P_MASTER_TO_SLAVE_NUM_BYTES; i++) {
-    buf[i]++;
-  }
 }
 
 static void init_j3p (void)
@@ -108,23 +114,18 @@ static void init_j3p (void)
                    j3p_master_line_up,
                    j3p_master_line_down,
                    j3p_master_read_line,
-                   J3P_MASTER_TO_SLAVE_NUM_BYTES,
-                   J3P_SLAVE_TO_MASTER_NUM_BYTES,
-                   j3p_master_buf,
-                   j3p_master_recv_complete);
+                   sizeof (struct master_to_slave_data),
+                   sizeof (struct slave_to_master_data),
+                   g_master_buf,
+                   j3p_master_query_complete);
   j3p_slave_init (&j3p_slave_ctx_instance,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
                   j3p_slave_read_line,
-                  J3P_MASTER_TO_SLAVE_NUM_BYTES,
-                  J3P_SLAVE_TO_MASTER_NUM_BYTES,
-                  j3p_slave_buf,
+                  sizeof (struct master_to_slave_data),
+                  sizeof (struct slave_to_master_data),
+                  g_slave_buf,
                   j3p_slave_query);
-  j3p_master_buf[0] = 'A';
-  j3p_master_buf[1] = 'B';
-  j3p_master_buf[2] = 'C';
-  j3p_master_buf[3] = 'D';
-  j3p_master_buf[4] = 'E';
 }
 
 static void init_master_clock_listen (void)
