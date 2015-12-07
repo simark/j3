@@ -195,6 +195,8 @@ int main (void)
 {
   /* Debug pin */
   DDRB |= _BV(PB0);
+  DDRB |= _BV(PB1);
+  DDRA |= _BV(PA2) | _BV(PA3);
 
   uint8_t my_id = eeprom_read_byte (0);
 

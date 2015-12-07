@@ -39,11 +39,13 @@ static void j3p_recv_on_falling_start_bit (struct j3p_recv_fsm *fsm)
     /* Still on the mark */
   } else {
     j3p_recv_state_byte (fsm);
+    PORTA |= _BV(PA2);
   }
 }
 
 static void j3p_recv_on_falling_byte (struct j3p_recv_fsm *fsm)
 {
+  PORTA |= _BV(PA3);
   uint8_t line_value = fsm->read_line ();
 
   fsm->cur_byte >>= 1;
@@ -60,13 +62,18 @@ static void j3p_recv_on_falling_byte (struct j3p_recv_fsm *fsm)
     fsm->bytes_left--;
     j3p_recv_state_stop_bit (fsm);
   }
+
+  PORTA &= ~_BV(PA3);
 }
 
 static void j3p_recv_on_falling_stop_bit (struct j3p_recv_fsm *fsm)
 {
   uint8_t line_value = fsm->read_line ();
 
+
+
   if (line_value) {
+    PORTA &= ~_BV(PA2);
     if (fsm->bytes_left == 0) {
       j3p_recv_state_done (fsm);
     } else {
