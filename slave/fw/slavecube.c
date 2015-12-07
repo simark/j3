@@ -2,7 +2,9 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "config.h"
 
@@ -17,21 +19,22 @@ static struct j3p_slave_ctx j3p_slave_ctx_instance;
 
 struct master_to_slave_data {
   uint8_t idx;
-  uint8_t word[6];
+  uint8_t word[MAX_CUBES];
 };
 
 struct slave_to_master_data {
-  uint8_t cubes[6];
+  uint8_t cubes[MAX_CUBES];
 };
 
 struct {
-
+  uint8_t known_downstream_cubes[MAX_CUBES];
 } g_cur_state;
 
 #define BUFSIZE max(sizeof (struct master_to_slave_data), \
                     sizeof (struct slave_to_master_data))
 static uint8_t g_master_buf[BUFSIZE];
 static uint8_t g_slave_buf[BUFSIZE];
+static uint8_t g_my_id = 0xaa;
 
 static void j3p_master_line_up (void)
 {
@@ -100,12 +103,21 @@ ISR(EXT_INT0_vect)
 
 static void j3p_master_query_complete (uint8_t *buf __attribute__ ((unused)))
 {
+  struct slave_to_master_data *s = (struct slave_to_master_data *) buf;
 
+  /* Copy downstream cube ids from slave message */
+  memcpy (g_cur_state.known_downstream_cubes, s->cubes, MAX_CUBES);
 }
 
 static void j3p_slave_query (uint8_t *buf __attribute__ ((unused)))
 {
+  /* First, read in info from the master (TODO) */
+  //struct master_to_slave_data *m2s = (struct master_to_slave_data *) buf;
 
+  /* Then, fill the buffer with our info. */
+  struct slave_to_master_data *s2m = (struct slave_to_master_data *) buf;
+  s2m->cubes[0] = g_my_id;
+  memcpy (s2m->cubes + 1, g_cur_state.known_downstream_cubes, MAX_CUBES - 1);
 }
 
 static void init_j3p (void)
@@ -149,8 +161,11 @@ int main (void)
   /* Debug pin */
   DDRB |= _BV(PB0);
 
+  g_my_id = eeprom_read_byte (0);
+  init_state ();
   init_master_clock_listen ();
   init_j3p ();
+
 
   sei();
 
