@@ -3,8 +3,8 @@ C_SRC = $(wildcard *.c)
 H_SRC = $(wildcard *.h)
 
 # target MCU
-MCU = attiny24a
-PROGRAM_MCU = t24
+MCU = attiny84a
+PROGRAM_MCU = t84
 F_CPU = 8000000UL
 
 # targets
@@ -33,7 +33,7 @@ D_FILES = $(O_FILES:.o=.d)
 
 # C flags
 CFLAGS = -mmcu=$(MCU) -O$(OPTLEVEL) -fshort-enums \
-	-funsigned-bitfields -funsigned-char -Wall -Wextra -Werror -DF_CPU=$(F_CPU)
+	-funsigned-bitfields -funsigned-char -Wall -Wextra -Werror -DF_CPU=$(F_CPU) $(EXTRA_CFLAGS)
 
 # linker flags
 LDFLAGS = -Wl,-Map,$(TARGET_MAP) -mmcu=$(MCU)
