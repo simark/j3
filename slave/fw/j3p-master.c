@@ -10,7 +10,7 @@ static void j3p_master_state_idle (struct j3p_master_ctx *ctx)
 static void j3p_master_state_break (struct j3p_master_ctx *ctx)
 {
   ctx->state = J3P_MASTER_STATE_BREAK;
-  ctx->break_.bits_left = J3P_BREAK_NUM_BITS;
+  ctx->break_.bits_left = J3P_BREAK_NUM_BITS + 8;
 }
 
 static void j3p_master_state_mark_after_break (struct j3p_master_ctx *ctx)
