@@ -33,10 +33,16 @@ static struct {
   uint16_t slave_query_timer;
 } g_state;
 
-#define BUFSIZE max(sizeof (struct master_to_slave_data), \
-                    sizeof (struct slave_to_master_data))
-static uint8_t g_master_buf[BUFSIZE];
-static uint8_t g_slave_buf[BUFSIZE];
+union {
+  struct master_to_slave_data out;
+  struct slave_to_master_data in;
+} g_master_buf;
+
+union {
+  struct master_to_slave_data in;
+  struct slave_to_master_data out;
+} g_slave_buf;
+
 
 static void j3p_master_line_up (void)
 {
@@ -156,7 +162,7 @@ static void init_j3p (void)
                    j3p_master_read_line,
                    sizeof (struct master_to_slave_data),
                    sizeof (struct slave_to_master_data),
-                   g_master_buf,
+                   (uint8_t *) &g_master_buf,
                    slave_query_complete);
   j3p_slave_init (&j3p_slave_ctx_instance,
                   j3p_slave_line_up,
@@ -164,7 +170,7 @@ static void init_j3p (void)
                   j3p_slave_read_line,
                   sizeof (struct master_to_slave_data),
                   sizeof (struct slave_to_master_data),
-                  g_slave_buf,
+                  (uint8_t *)&g_slave_buf,
                   slave_query_impl);
 }
 
