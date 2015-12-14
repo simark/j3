@@ -38,7 +38,7 @@ static void j3p_master_state_receiving (struct j3p_master_ctx *ctx)
 static void j3p_master_on_rising_idle (struct j3p_master_ctx *ctx)
 {
   /* We're idle, just keep the pin in high-z. */
-  ctx->line_up();
+  ctx->line_up ();
 }
 
 static void j3p_master_on_rising_break (struct j3p_master_ctx *ctx)
