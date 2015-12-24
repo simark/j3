@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+#include <common-config.h>
+
 #include "config.h"
 
 #include <j3p.h>
@@ -14,35 +17,25 @@
 
 static struct j3p_master_ctx j3p_master_ctx_instance;
 static struct j3p_slave_ctx j3p_slave_ctx_instance;
-
-#define MAX_CUBES 6
-
-struct master_to_slave_data {
-  uint8_t idx;
-  uint8_t word[MAX_CUBES];
-};
-
-struct slave_to_master_data {
-  uint8_t cubes[MAX_CUBES];
-};
+static comm_buf g_master_buf;
+static comm_buf g_slave_buf;
 
 static struct {
-  uint8_t known_downstream_cubes[MAX_CUBES];
-  uint8_t slave_has_answered;
+  // The built-in id, read from EEPRROM
   uint8_t my_id;
+
+  // Comm with downstream
+  uint8_t slave_has_answered;
   uint16_t slave_query_timer;
+
+  // Info we get from master (and have to give to slave)
+  uint8_t word[MAX_CUBES];
+  uint8_t my_rank;  // zero-based rank of the slave in the word (first slave
+                    // is zero)
+
+  // Info we get from slave (and have to give to master)
+  uint8_t known_downstream_cubes[MAX_CUBES];
 } g_state;
-
-union {
-  struct master_to_slave_data out;
-  struct slave_to_master_data in;
-} g_master_buf;
-
-union {
-  struct master_to_slave_data in;
-  struct slave_to_master_data out;
-} g_slave_buf;
-
 
 static void j3p_master_line_up (void)
 {
@@ -77,14 +70,14 @@ static uint8_t j3p_slave_read_line (void)
 /*
  * Called in the master's code, when it has receive a response from the slave.
  */
-static void slave_query_complete (uint8_t *buf)
+static void master_query_complete (uint8_t *_buf)
 {
-  struct slave_to_master_data *s = (struct slave_to_master_data *) buf;
+  comm_buf *buf = (comm_buf *) _buf;
 
   g_state.slave_has_answered = 1;
 
   /* Copy downstream cube ids from slave message */
-  memcpy (g_state.known_downstream_cubes, s->cubes, MAX_CUBES);
+  memcpy (g_state.known_downstream_cubes, buf->s2m.cubes, MAX_CUBES);
 }
 
 /*
@@ -101,15 +94,18 @@ static void slave_timeout (void)
  * Called in the slave's code, when we received a query from the master and
  * should reply something.
  */
-static void slave_query_impl (uint8_t *buf)
+static void slave_query_impl (uint8_t *_buf)
 {
-  /* First, read in info from the master (TODO) */
-  //struct master_to_slave_data *m2s = (struct master_to_slave_data *) buf;
+  comm_buf *buf = (comm_buf *) _buf;
+
+  /* First, read in info from the master */
+  g_state.my_rank = buf->m2s.rank;
+  memcpy (g_state.word, buf->m2s.word, MAX_CUBES);
 
   /* Then, fill the buffer with our info. */
-  struct slave_to_master_data *s2m = (struct slave_to_master_data *) buf;
-  s2m->cubes[0] = g_state.my_id;
-  memcpy (s2m->cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
+
+  buf->s2m.cubes[0] = g_state.my_id;
+  memcpy (buf->s2m.cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
 }
 
 static void rising (void)
@@ -127,6 +123,10 @@ static void rising (void)
     } else {
       PORTB &= ~_BV(PB0);
     }
+
+
+    // g_master_buf.m2s.idx
+    // Fill g_master_buf.m2s.word
 
     g_state.slave_has_answered = 0;
     j3p_master_query (&j3p_master_ctx_instance);
@@ -163,7 +163,7 @@ static void init_j3p (void)
                    sizeof (struct master_to_slave_data),
                    sizeof (struct slave_to_master_data),
                    (uint8_t *) &g_master_buf,
-                   slave_query_complete);
+                   master_query_complete);
   j3p_slave_init (&j3p_slave_ctx_instance,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
@@ -173,6 +173,7 @@ static void init_j3p (void)
                   (uint8_t *)&g_slave_buf,
                   slave_query_impl);
 }
+
 
 static void init_master_clock_listen (void)
 {
