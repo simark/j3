@@ -2,12 +2,12 @@
 C_SRC = $(wildcard *.c) $(wildcard ../../common/*.c)
 
 # target MCU
-MCU = attiny84a
-PROGRAM_MCU = t84
-F_CPU = 8000000UL
+MCU = atmega32
+PROGRAM_MCU = m32
+F_CPU = 8000000UL1
 
 # targets
-TARGET = slavecube
+TARGET = mastercube
 TARGET_OUT = $(TARGET).out
 TARGET_HEX = $(TARGET).hex
 TARGET_MAP = $(TARGET).map

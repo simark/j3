@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#include "j3p.h"
+#include <j3p.h>
 
 #define max(a,b) (a > b ? a : b)
 
