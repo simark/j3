@@ -17,5 +17,10 @@ typedef union {
   struct slave_to_master_data s2m;
 } comm_buf;
 
+
+enum anim_pattern {
+  ANIM_PATTERN_TODO,
+};
+
 #endif /* COMMON_CONFIG_H */
 
