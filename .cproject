@@ -17,11 +17,12 @@
 				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.cross.base.2022722277" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.cross.base.2022722277.1063457355" name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.1945355351" name="Cross GCC" superClass="cdt.managedbuild.toolchain.gnu.cross.base">
-							<option id="cdt.managedbuild.option.gnu.cross.prefix.1605354385" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
+							<option id="cdt.managedbuild.option.gnu.cross.prefix.1605354385" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix" value="avr-" valueType="string"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.163208549" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.869273638" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
 							<builder id="cdt.managedbuild.builder.gnu.cross.1955548472" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1404162381" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
+								<option id="gnu.c.compiler.option.dialect.std.1834737" name="Language standard" superClass="gnu.c.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.c.compiler.dialect.default" valueType="enumerated"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1088890807" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.595101545" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler"/>
@@ -38,6 +39,51 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<folderInfo id="cdt.managedbuild.toolchain.gnu.cross.base.2022722277.1279127942" name="/" resourcePath="slave">
+						<toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.608091808" name="Cross GCC" superClass="cdt.managedbuild.toolchain.gnu.cross.base" unusedChildren="">
+							<option id="cdt.managedbuild.option.gnu.cross.prefix.1605354385.1593942748" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix.1605354385"/>
+							<option id="cdt.managedbuild.option.gnu.cross.path.163208549.373023554" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path.163208549"/>
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1983009335" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler.1404162381">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.316204058" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__AVR_ATtiny84A__=1"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1723255267" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+							</tool>
+							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.370357606" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler.595101545"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.c.linker.1925285706" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker.996099160"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.linker.75548809" name="Cross G++ Linker" superClass="cdt.managedbuild.tool.gnu.cross.cpp.linker.1086232222"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.867042023" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver.99842591"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.335635506" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler.45710062">
+								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1841233955" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+					<fileInfo id="cdt.managedbuild.toolchain.gnu.cross.base.2022722277.1317445572" name="slavecube.c" rcbsApplicability="disable" resourcePath="slave/fw/slavecube.c" toolsToInvoke="cdt.managedbuild.tool.gnu.cross.c.compiler.1983009335.1115642348">
+						<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1983009335.1115642348" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler.1983009335">
+							<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.635180991" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+						</tool>
+					</fileInfo>
+					<folderInfo id="cdt.managedbuild.toolchain.gnu.cross.base.2022722277.74014" name="/" resourcePath="master">
+						<toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.41695255" name="Cross GCC" superClass="cdt.managedbuild.toolchain.gnu.cross.base" unusedChildren="">
+							<option id="cdt.managedbuild.option.gnu.cross.prefix.1605354385.4422643" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix.1605354385"/>
+							<option id="cdt.managedbuild.option.gnu.cross.path.163208549.2087125435" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path.163208549"/>
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1954506317" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler.1404162381">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.870073078" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__AVR_ATmega32A__=1"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1761303432" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+							</tool>
+							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.218035111" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler.595101545"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.c.linker.1780826913" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker.996099160"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.linker.1549142027" name="Cross G++ Linker" superClass="cdt.managedbuild.tool.gnu.cross.cpp.linker.1086232222"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.604328533" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver.99842591"/>
+							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.350263847" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler.45710062">
+								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.270387249" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
@@ -46,9 +92,6 @@
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 		<project id="j3.null.1193218550" name="j3"/>
 	</storageModule>
-	<storageModule moduleId="scannerConfiguration">
-		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="Default">
@@ -56,4 +99,10 @@
 		</configuration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.2022722277;cdt.managedbuild.toolchain.gnu.cross.base.2022722277.1063457355;cdt.managedbuild.tool.gnu.cross.c.compiler.1404162381;cdt.managedbuild.tool.gnu.c.compiler.input.1088890807">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
 </cproject>
