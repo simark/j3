@@ -1,8 +1,11 @@
 #include <j3p.h>
 #include <common-config.h>
 #include <string.h>
+#include <util/atomic.h>
 
-static struct j3p_master_ctx j3p_master_ctx_instance;
+#include "config.h"
+
+static struct j3p_master_ctx g_j3p_master_ctx;
 
 static comm_buf g_master_buf;
 
@@ -14,6 +17,11 @@ static struct {
   // Our idea of the present slaves.  The slave ids start at 1, so 0 means
   // "no slave present".
   uint8_t slave_sequence[MAX_CUBES];
+
+  // Incremented once per clock cycle.  Once this reaches SLAVE_QUERY_TIMER_MAX,
+  // we initiate a slave query.
+  uint16_t slave_query_timer;
+  uint8_t slave_has_answered;
 } g_state;
 
 /*
@@ -23,7 +31,9 @@ static struct {
  */
 void get_slave_sequence (uint8_t *slave_sequence)
 {
-  memcpy (slave_sequence, g_state.slave_sequence, MAX_CUBES);
+  ATOMIC_BLOCK (ATOMIC_FORCEON) {
+    memcpy (slave_sequence, g_state.slave_sequence, MAX_CUBES);
+  }
 }
 
 /*
@@ -33,9 +43,11 @@ uint8_t get_slave_count (void)
 {
   uint8_t cnt = 0;
 
-  for (cnt = 0;
-       cnt < MAX_CUBES && g_state.slave_sequence[cnt] != 0;
-       cnt++);
+  ATOMIC_BLOCK (ATOMIC_FORCEON) {
+    for (cnt = 0;
+         cnt < MAX_CUBES && g_state.slave_sequence[cnt] != 0;
+         cnt++);
+  }
 
   return cnt;
 }
@@ -51,29 +63,88 @@ uint8_t get_slave_count (void)
 
 void set_current_word (uint8_t *word, enum anim_pattern *patterns)
 {
-  memcpy (g_state.word, word, sizeof (*word) * MAX_CUBES);
-  memcpy (g_state.patterns, patterns, sizeof (*patterns) * MAX_CUBES);
+  ATOMIC_BLOCK (ATOMIC_FORCEON) {
+    memcpy (g_state.word, word, sizeof (*word) * MAX_CUBES);
+    memcpy (g_state.patterns, patterns, sizeof (*patterns) * MAX_CUBES);
+  }
 }
 
-static void master_line_up(void)
+/* Called when a slave query times out. */
+static void slave_timeout (void)
 {
-  // TODO
+
 }
 
-static void master_line_down(void)
+static void rising (void)
 {
-  // TODO
+  j3p_master_on_rising (&g_j3p_master_ctx);
+
+  g_state.slave_query_timer++;
+
+  if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
+    /* If we are about to send another query and the slave hasn't
+     * answered the previous one, assume he is not there. */
+    if (!g_state.slave_has_answered) {
+      slave_timeout ();
+    }
+
+    // Fill message to slave.
+    g_master_buf.m2s.rank = 0;
+    memcpy (g_master_buf.m2s.word, g_state.word, MAX_CUBES);
+    memcpy (g_master_buf.m2s.patterns, g_state.patterns, MAX_CUBES);
+
+    // Send it!
+    j3p_master_query (&g_j3p_master_ctx);
+    g_state.slave_has_answered = 0;
+    g_state.slave_query_timer = 0;
+  }
 }
 
-static uint8_t master_read_line(void)
+static void falling (void)
 {
-  //TODO
+  j3p_master_on_falling (&g_j3p_master_ctx);
+}
+
+ISR(TIMER0_COMP_vect)
+{
+  // FIXME: I think we could read back from PORT, but I am not sure.  I put this
+  // just to be sure.
+  static uint8_t clock_value = 0;
+
+  if (clock_value == 0) {
+    clock_value = 1;
+    MASTER_CLK_OUTPUT_PORT |= MASTER_CLK_OUTPUT_MASK;
+    rising ();
+  } else {
+    clock_value = 0;
+    MASTER_CLK_OUTPUT_PORT &= ~MASTER_CLK_OUTPUT_MASK;
+    falling ();
+  }
+}
+
+static void master_line_up (void)
+{
+  COMM_MASTER_DDR &= ~COMM_MASTER_MASK;
+}
+
+static void master_line_down (void)
+{
+  COMM_MASTER_DDR |= COMM_MASTER_MASK;
+}
+
+static uint8_t master_read_line (void)
+{
+  return (COMM_MASTER_PIN & COMM_MASTER_MASK) != 0;
   return 0;
 }
 
-static void master_query_complete(uint8_t *buf)
+static void master_query_complete (uint8_t *_buf)
 {
-  buf++;
+  comm_buf *buf = (comm_buf *) _buf;
+
+  g_state.slave_has_answered = 1;
+
+  memcpy (g_state.slave_sequence, buf->s2m.cubes, MAX_CUBES);
 }
 
 static void init_state (void)
@@ -84,18 +155,48 @@ static void init_state (void)
 static void init_comm (void)
 {
   // TODO: init comm pins
-  j3p_master_init (&j3p_master_ctx_instance,
+  j3p_master_init (&g_j3p_master_ctx,
                    master_line_up, master_line_down,
                    master_read_line,
-                   sizeof(struct master_to_slave_data),
-                   sizeof(struct slave_to_master_data),
+                   sizeof(struct m2s_data),
+                   sizeof(struct s2m_data),
                    (uint8_t *) &g_master_buf,
                    master_query_complete);
 }
 
-int
-main (void)
+static void init_clk (void)
+{
+  MASTER_CLK_OUTPUT_DDR |= MASTER_CLK_OUTPUT_MASK;
+  MASTER_CLK_OUTPUT_PORT &= ~MASTER_CLK_OUTPUT_MASK;
+
+  // CTC, clk/8 (= 1 MHz)
+  TCCR0 |= _BV(WGM01) | _BV(CS01);
+
+#define TIMER_PRESCALER 8
+#define TIMER_FREQ (F_CPU / TIMER_PRESCALER)
+#define TIMER_TOP (TIMER_FREQ / MASTER_CLK_FREQ)
+
+  OCR0 = TIMER_TOP;
+
+  // Reset the timer, just for fun.
+  TCNT0 = 0;
+
+  // Enable timer interrupt
+  TIMSK |= _BV(OCIE0);
+}
+
+static void loop ()
+{
+  for (;;);
+}
+
+int main (void)
 {
   init_state ();
   init_comm ();
+  init_clk ();
+
+  sei();
+
+  loop();
 }

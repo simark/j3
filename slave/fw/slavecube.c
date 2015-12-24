@@ -15,8 +15,8 @@
 
 #define max(a,b) (a > b ? a : b)
 
-static struct j3p_master_ctx j3p_master_ctx_instance;
-static struct j3p_slave_ctx j3p_slave_ctx_instance;
+static struct j3p_master_ctx g_j3p_master_ctx;
+static struct j3p_slave_ctx g_j3p_slave_ctx;
 static comm_buf g_master_buf;
 static comm_buf g_slave_buf;
 
@@ -30,6 +30,7 @@ static struct {
 
   // Info we get from master (and have to give to slave)
   uint8_t word[MAX_CUBES];
+  enum anim_pattern pattenrs[MAX_CUBES];
   uint8_t my_rank;  // zero-based rank of the slave in the word (first slave
                     // is zero)
 
@@ -39,32 +40,32 @@ static struct {
 
 static void j3p_master_line_up (void)
 {
-  J3P_MASTER_DDR &= ~J3P_MASTER_MASK;
+  COMM_MASTER_DDR &= ~COMM_MASTER_MASK;
 }
 
 static void j3p_master_line_down (void)
 {
-  J3P_MASTER_DDR |= J3P_MASTER_MASK;
+  COMM_MASTER_DDR |= COMM_MASTER_MASK;
 }
 
 static uint8_t j3p_master_read_line (void)
 {
-  return (J3P_MASTER_PIN & J3P_MASTER_MASK) != 0;
+  return (COMM_MASTER_PIN & COMM_MASTER_MASK) != 0;
 }
 
 static void j3p_slave_line_up (void)
 {
-  J3P_SLAVE_DDR &= ~J3P_SLAVE_MASK;
+  COMM_SLAVE_DDR &= ~COMM_SLAVE_MASK;
 }
 
 static void j3p_slave_line_down (void)
 {
-  J3P_SLAVE_DDR |= J3P_SLAVE_MASK;
+  COMM_SLAVE_DDR |= COMM_SLAVE_MASK;
 }
 
 static uint8_t j3p_slave_read_line (void)
 {
-  return (J3P_SLAVE_PIN & J3P_SLAVE_MASK) != 0;
+  return (COMM_SLAVE_PIN & COMM_SLAVE_MASK) != 0;
 }
 
 /*
@@ -110,26 +111,26 @@ static void slave_query_impl (uint8_t *_buf)
 
 static void rising (void)
 {
-  j3p_master_on_rising (&j3p_master_ctx_instance);
-  j3p_slave_on_rising (&j3p_slave_ctx_instance);
+  j3p_master_on_rising (&g_j3p_master_ctx);
+  j3p_slave_on_rising (&g_j3p_slave_ctx);
 
   g_state.slave_query_timer++;
 
-  if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_VALUE) {
+  if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
     /* If we are about to send another query and the slave hasn't
      * answered the previous one, assume he is not there. */
     if (!g_state.slave_has_answered) {
       slave_timeout ();
-    } else {
-      PORTB &= ~_BV(PB0);
     }
 
+    // Fill message to slave.
+    g_master_buf.m2s.rank = g_state.my_rank + 1;
+    memcpy (g_master_buf.m2s.word, g_state.word, MAX_CUBES);
+    memcpy (g_master_buf.m2s.patterns, g_state.pattenrs, MAX_CUBES);
 
-    // g_master_buf.m2s.idx
-    // Fill g_master_buf.m2s.word
-
+    // Send it!;
+    j3p_master_query (&g_j3p_master_ctx);
     g_state.slave_has_answered = 0;
-    j3p_master_query (&j3p_master_ctx_instance);
     g_state.slave_query_timer = 0;
   }
 }
@@ -137,8 +138,8 @@ static void rising (void)
 static void falling (void)
 {
 
-  j3p_master_on_falling (&j3p_master_ctx_instance);
-  j3p_slave_on_falling (&j3p_slave_ctx_instance);
+  j3p_master_on_falling (&g_j3p_master_ctx);
+  j3p_slave_on_falling (&g_j3p_slave_ctx);
 }
 
 ISR(EXT_INT0_vect)
@@ -156,20 +157,20 @@ ISR(EXT_INT0_vect)
 
 static void init_j3p (void)
 {
-  j3p_master_init (&j3p_master_ctx_instance,
+  j3p_master_init (&g_j3p_master_ctx,
                    j3p_master_line_up,
                    j3p_master_line_down,
                    j3p_master_read_line,
-                   sizeof (struct master_to_slave_data),
-                   sizeof (struct slave_to_master_data),
+                   sizeof (struct m2s_data),
+                   sizeof (struct s2m_data),
                    (uint8_t *) &g_master_buf,
                    master_query_complete);
-  j3p_slave_init (&j3p_slave_ctx_instance,
+  j3p_slave_init (&g_j3p_slave_ctx,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
                   j3p_slave_read_line,
-                  sizeof (struct master_to_slave_data),
-                  sizeof (struct slave_to_master_data),
+                  sizeof (struct m2s_data),
+                  sizeof (struct s2m_data),
                   (uint8_t *)&g_slave_buf,
                   slave_query_impl);
 }

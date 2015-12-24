@@ -3,24 +3,21 @@
 
 #include <avr/io.h>
 
-/* Frequency of the clock we receive */
-#define MASTER_CLK_FREQ 10000 // hz
+// The pin on which we receive the master clock.
 #define MASTER_CLK_DDR DDRB
 #define MASTER_CLK_PIN PINB
 #define MASTER_CLK_MASK _BV(PB2)
 
-/* Frequency at which we want to query our neighbour */
-#define J3P_POLL_FREQ 5 // hz
-#define SLAVE_QUERY_TIMER_VALUE (MASTER_CLK_FREQ / J3P_POLL_FREQ)
+// The pin we use to communicate to a slave, as a master.
+#define COMM_MASTER_DDR DDRA
+#define COMM_MASTER_PIN PINA
+#define COMM_MASTER_PORT PORTA
+#define COMM_MASTER_MASK _BV(PA0)
 
-#define J3P_MASTER_DDR DDRA
-#define J3P_MASTER_PIN PINA
-#define J3P_MASTER_PORT PORTA
-#define J3P_MASTER_MASK _BV(PA0)
-
-#define J3P_SLAVE_DDR DDRA
-#define J3P_SLAVE_PIN PINA
-#define J3P_SLAVE_PORT PORTA
-#define J3P_SLAVE_MASK _BV(PA1)
+// The pin we use to communicate to a master, as a slave.
+#define COMM_SLAVE_DDR DDRA
+#define COMM_SLAVE_PIN PINA
+#define COMM_SLAVE_PORT PORTA
+#define COMM_SLAVE_MASK _BV(PA1)
 
 #endif /* _CONFIG_H */

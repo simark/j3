@@ -4,7 +4,7 @@ C_SRC = $(wildcard *.c) $(wildcard ../../common/*.c)
 # target MCU
 MCU = atmega32
 PROGRAM_MCU = m32
-F_CPU = 8000000UL1
+F_CPU = 8000000UL
 
 # targets
 TARGET = mastercube
