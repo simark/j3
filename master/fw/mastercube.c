@@ -12,10 +12,6 @@
 #include "input.h"
 #include "menu.h"
 
-static struct j3p_master_ctx g_j3p_master_ctx;
-
-static comm_buf g_master_buf;
-
 static volatile struct {
   // The word we currently display
   struct anim_word anim_word;
@@ -29,14 +25,20 @@ static volatile struct {
   uint16_t slave_query_timer;
   uint8_t slave_has_answered;
 
+
+  // Communication with the slaves
+  struct j3p_master_ctx g_j3p_master_ctx;
+  union comm_buf master_buf;
+} g_volatile_state;
+
+static struct {
   struct btn_state btn0;
   struct btn_state btn1;
   struct input_state input;
   struct beep_state beep;
 } g_state;
 
-
-static uint8_t beep_freq_table[] = {
+static const uint8_t beep_freq_table[] = {
   25,
   50,
   100,
@@ -64,7 +66,7 @@ static void beep_melody (struct beep_note *song)
 void get_slave_sequence (struct slave_seq *slave_seq)
 {
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
-    memcpy (slave_seq, (void *) &g_state.slave_seq, sizeof (*slave_seq));
+    memcpy (slave_seq, (void *) &g_volatile_state.slave_seq, sizeof (*slave_seq));
   }
 }
 
@@ -77,7 +79,7 @@ uint8_t get_slave_count (void)
 
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
     for (cnt = 0;
-         cnt < MAX_CUBES && g_state.slave_seq.ids[cnt] != 0;
+         cnt < MAX_CUBES && g_volatile_state.slave_seq.ids[cnt] != 0;
          cnt++);
   }
 
@@ -96,7 +98,7 @@ uint8_t get_slave_count (void)
 void set_current_anim_word (struct anim_word *anim_word)
 {
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
-    memcpy ((void *) &g_state.anim_word, anim_word, sizeof (struct anim_word));
+    memcpy ((void *) &g_volatile_state.anim_word, anim_word, sizeof (struct anim_word));
   }
 }
 
@@ -127,46 +129,43 @@ static void input_event (enum input_event ev)
 }
 
 /* Called when a slave query times out. */
-static void slave_timeout (void)
+static void isr_slave_timeout (void)
 {
-  memset ((void *) &g_state.slave_seq, 0,
-          sizeof (g_state.slave_seq));;
+  memset ((void *) &g_volatile_state.slave_seq, 0,
+          sizeof (g_volatile_state.slave_seq));;
 }
 
-static void slave_is_alive (void)
+static void isr_rising (void)
 {
+  j3p_master_on_rising (&g_volatile_state.g_j3p_master_ctx);
 
-}
+  g_volatile_state.slave_query_timer++;
 
-static void rising (void)
-{
-  j3p_master_on_rising (&g_j3p_master_ctx);
-
-  g_state.slave_query_timer++;
-
-  if (g_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
+  if (g_volatile_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
     /* If we are about to send another query and the slave hasn't
      * answered the previous one, assume he is not there. */
-    if (!g_state.slave_has_answered) {
-      slave_timeout ();
+    if (!g_volatile_state.slave_has_answered) {
+      isr_slave_timeout ();
     }
 
     // Fill message to slave.
-    g_master_buf.m2s.rank = 0;
-    memcpy (&g_master_buf.m2s.anim_word, (void *) &g_state.anim_word, sizeof (struct anim_word));
+    g_volatile_state.master_buf.m2s.rank = 0;
+    memcpy ((void *) &g_volatile_state.master_buf.m2s.anim_word,
+            (void *) &g_volatile_state.anim_word,
+            sizeof (g_volatile_state.master_buf.m2s.anim_word));
 
     // Send it!
-    j3p_master_query (&g_j3p_master_ctx);
-    g_state.slave_has_answered = 0;
-    g_state.slave_query_timer = 0;
+    j3p_master_query (&g_volatile_state.g_j3p_master_ctx);
+    g_volatile_state.slave_has_answered = 0;
+    g_volatile_state.slave_query_timer = 0;
   }
 
   tick ();
 }
 
-static void falling (void)
+static void isr_falling (void)
 {
-  j3p_master_on_falling (&g_j3p_master_ctx);
+  j3p_master_on_falling (&g_volatile_state.g_j3p_master_ctx);
 }
 
 ISR(TIMER0_COMP_vect)
@@ -178,38 +177,37 @@ ISR(TIMER0_COMP_vect)
   if (clock_value == 0) {
     clock_value = 1;
     MASTER_CLK_OUTPUT_PORT |= MASTER_CLK_OUTPUT_MASK;
-    rising ();
+    isr_rising ();
   } else {
     clock_value = 0;
     MASTER_CLK_OUTPUT_PORT &= ~MASTER_CLK_OUTPUT_MASK;
-    falling ();
+    isr_falling ();
   }
 }
 
-static void master_line_up (void)
+static void isr_master_line_up (void)
 {
   COMM_MASTER_DDR &= ~COMM_MASTER_MASK;
 }
 
-static void master_line_down (void)
+static void isr_master_line_down (void)
 {
   COMM_MASTER_DDR |= COMM_MASTER_MASK;
 }
 
-static uint8_t master_read_line (void)
+static uint8_t isr_master_read_line (void)
 {
   return (COMM_MASTER_PIN & COMM_MASTER_MASK) != 0;
   return 0;
 }
 
-static void master_query_complete (uint8_t *_buf)
+static void isr_master_query_complete (void)
 {
-  comm_buf *buf = (comm_buf *) _buf;
+  g_volatile_state.slave_has_answered = 1;
 
-  g_state.slave_has_answered = 1;
-  slave_is_alive();
-
-  memcpy ((void *) &g_state.slave_seq, &buf->s2m.slave_seq, sizeof (g_state.slave_seq));
+  memcpy ((void *) &g_volatile_state.slave_seq,
+          (void *) &g_volatile_state.master_buf.s2m.slave_seq,
+          sizeof (g_volatile_state.slave_seq));
 }
 
 static void init_state (void)
@@ -219,14 +217,13 @@ static void init_state (void)
 
 static void init_comm (void)
 {
-  // TODO: init comm pins
-  j3p_master_init (&g_j3p_master_ctx,
-                   master_line_up, master_line_down,
-                   master_read_line,
+  j3p_master_init (&g_volatile_state.g_j3p_master_ctx,
+                   isr_master_line_up, isr_master_line_down,
+                   isr_master_read_line,
                    sizeof(struct m2s_data),
                    sizeof(struct s2m_data),
-                   (uint8_t *) &g_master_buf,
-                   master_query_complete);
+                   (uint8_t *) &g_volatile_state.master_buf,
+                   isr_master_query_complete);
 }
 
 static void init_clk (void)

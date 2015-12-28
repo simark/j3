@@ -23,18 +23,18 @@ struct j3p_recv_fsm {
   uint8_t cur_byte;
 };
 
-void j3p_recv_init (struct j3p_recv_fsm *fsm,
+void j3p_recv_init (volatile struct j3p_recv_fsm *fsm,
                     j3p_read_line_op read_line,
                     uint8_t bytes_in,
                     uint8_t *recv_buf);
-void j3p_recv_on_falling (struct j3p_recv_fsm *fsm);
+void j3p_recv_on_falling (volatile struct j3p_recv_fsm *fsm);
 
-static inline uint8_t j3p_recv_is_done (struct j3p_recv_fsm *fsm)
+static inline uint8_t j3p_recv_is_done (volatile struct j3p_recv_fsm *fsm)
 {
   return fsm->state == J3P_RECV_STATE_DONE;
 }
 
-static inline uint8_t j3p_recv_is_err (struct j3p_recv_fsm *fsm)
+static inline uint8_t j3p_recv_is_err (volatile struct j3p_recv_fsm *fsm)
 {
   return fsm->state == J3P_RECV_STATE_ERR;
 }

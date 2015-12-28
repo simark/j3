@@ -29,10 +29,10 @@ struct s2m_data {
   struct slave_seq slave_seq;
 };
 
-typedef union {
+union comm_buf {
   struct m2s_data m2s;
   struct s2m_data s2m;
-} comm_buf;
+};
 
 #endif /* COMMON_CONFIG_H */
 

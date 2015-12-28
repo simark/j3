@@ -21,14 +21,14 @@ struct j3p_send_fsm {
   uint8_t cur_byte;
 };
 
-void j3p_send_init (struct j3p_send_fsm *fsm,
+void j3p_send_init (volatile struct j3p_send_fsm *fsm,
                     j3p_set_line_op line_up,
                     j3p_set_line_op line_down,
                     uint8_t bytes_out,
                     uint8_t *send_buf);
-void j3p_send_on_rising (struct j3p_send_fsm *fsm);
+void j3p_send_on_rising (volatile struct j3p_send_fsm *fsm);
 
-static inline uint8_t j3p_send_is_done (struct j3p_send_fsm *fsm)
+static inline uint8_t j3p_send_is_done (volatile struct j3p_send_fsm *fsm)
 {
   return fsm->state == J3P_SEND_STATE_DONE;
 }
