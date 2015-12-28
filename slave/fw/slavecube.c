@@ -28,10 +28,10 @@ static volatile struct {
   // Info we get from slave (and have to give to master)
   struct slave_seq slave_seq;
 
-  struct j3p_master_ctx g_j3p_master_ctx;
-  struct j3p_slave_ctx g_j3p_slave_ctx;
-  union comm_buf g_master_buf;
-  union comm_buf g_slave_buf;
+  struct j3p_master_ctx j3p_master_ctx;
+  struct j3p_slave_ctx j3p_slave_ctx;
+  union comm_buf master_buf;
+  union comm_buf slave_buf;
 } g_volatile_state;
 
 static struct {
@@ -78,7 +78,7 @@ static void master_query_complete ()
 
   /* Copy downstream cube ids from slave message */
   memcpy ((void *) &g_volatile_state.slave_seq,
-          (void *) &g_volatile_state.g_master_buf.s2m.slave_seq,
+          (void *) &g_volatile_state.master_buf.s2m.slave_seq,
           sizeof (g_volatile_state.slave_seq));
 }
 
@@ -98,23 +98,23 @@ static void slave_timeout (void)
 static void slave_query_impl ()
 {
   /* First, read in info from the master */
-  g_volatile_state.my_rank = g_volatile_state.g_slave_buf.m2s.rank;
+  g_volatile_state.my_rank = g_volatile_state.slave_buf.m2s.rank;
   memcpy ((void *) &g_volatile_state.anim_word,
-          (void *) &g_volatile_state.g_slave_buf.m2s.anim_word,
+          (void *) &g_volatile_state.slave_buf.m2s.anim_word,
           sizeof (g_volatile_state.anim_word));
 
   /* Then, fill the buffer with our info. */
-  g_volatile_state.g_slave_buf.s2m.slave_seq.ids[0] = g_state.my_id;
-  memcpy((void *) g_volatile_state.g_slave_buf.s2m.slave_seq.ids + 1,
+  g_volatile_state.slave_buf.s2m.slave_seq.ids[0] = g_state.my_id;
+  memcpy((void *) g_volatile_state.slave_buf.s2m.slave_seq.ids + 1,
          (void *) g_volatile_state.slave_seq.ids,
-         sizeof (g_volatile_state.g_slave_buf.s2m.slave_seq.ids) -
-           sizeof(g_volatile_state.g_slave_buf.s2m.slave_seq.ids[0]));
+         sizeof (g_volatile_state.slave_buf.s2m.slave_seq.ids) -
+           sizeof(g_volatile_state.slave_buf.s2m.slave_seq.ids[0]));
 }
 
 static void isr_rising (void)
 {
-  j3p_master_on_rising (&g_volatile_state.g_j3p_master_ctx);
-  j3p_slave_on_rising (&g_volatile_state.g_j3p_slave_ctx);
+  j3p_master_on_rising (&g_volatile_state.j3p_master_ctx);
+  j3p_slave_on_rising (&g_volatile_state.j3p_slave_ctx);
 
   g_volatile_state.slave_query_timer++;
 
@@ -126,13 +126,13 @@ static void isr_rising (void)
     }
 
     // Fill message to slave.
-    g_volatile_state.g_master_buf.m2s.rank = g_volatile_state.my_rank + 1;
-    memcpy ((void *) &g_volatile_state.g_master_buf.m2s.anim_word,
+    g_volatile_state.master_buf.m2s.rank = g_volatile_state.my_rank + 1;
+    memcpy ((void *) &g_volatile_state.master_buf.m2s.anim_word,
             (void *) &g_volatile_state.anim_word,
-            sizeof (g_volatile_state.g_master_buf.m2s.anim_word));
+            sizeof (g_volatile_state.master_buf.m2s.anim_word));
 
     // Send it!;
-    j3p_master_query (&g_volatile_state.g_j3p_master_ctx);
+    j3p_master_query (&g_volatile_state.j3p_master_ctx);
     g_volatile_state.slave_has_answered = 0;
     g_volatile_state.slave_query_timer = 0;
   }
@@ -143,8 +143,8 @@ static void isr_rising (void)
 static void isr_falling (void)
 {
 
-  j3p_master_on_falling (&g_volatile_state.g_j3p_master_ctx);
-  j3p_slave_on_falling (&g_volatile_state.g_j3p_slave_ctx);
+  j3p_master_on_falling (&g_volatile_state.j3p_master_ctx);
+  j3p_slave_on_falling (&g_volatile_state.j3p_slave_ctx);
 }
 
 ISR(EXT_INT0_vect)
@@ -162,21 +162,21 @@ ISR(EXT_INT0_vect)
 
 static void init_j3p (void)
 {
-  j3p_master_init (&g_volatile_state.g_j3p_master_ctx,
+  j3p_master_init (&g_volatile_state.j3p_master_ctx,
                    j3p_master_line_up,
                    j3p_master_line_down,
                    j3p_master_read_line,
                    sizeof (struct m2s_data),
                    sizeof (struct s2m_data),
-                   (volatile uint8_t *) &g_volatile_state.g_master_buf,
+                   (volatile uint8_t *) &g_volatile_state.master_buf,
                    master_query_complete);
-  j3p_slave_init (&g_volatile_state.g_j3p_slave_ctx,
+  j3p_slave_init (&g_volatile_state.j3p_slave_ctx,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
                   j3p_slave_read_line,
                   sizeof (struct m2s_data),
                   sizeof (struct s2m_data),
-                  (volatile uint8_t *) &g_volatile_state.g_slave_buf,
+                  (volatile uint8_t *) &g_volatile_state.slave_buf,
                   slave_query_impl);
 }
 

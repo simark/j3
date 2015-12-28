@@ -27,7 +27,7 @@ static volatile struct {
 
 
   // Communication with the slaves
-  struct j3p_master_ctx g_j3p_master_ctx;
+  struct j3p_master_ctx j3p_master_ctx;
   union comm_buf master_buf;
 } g_volatile_state;
 
@@ -137,7 +137,7 @@ static void isr_slave_timeout (void)
 
 static void isr_rising (void)
 {
-  j3p_master_on_rising (&g_volatile_state.g_j3p_master_ctx);
+  j3p_master_on_rising (&g_volatile_state.j3p_master_ctx);
 
   g_volatile_state.slave_query_timer++;
 
@@ -155,7 +155,7 @@ static void isr_rising (void)
             sizeof (g_volatile_state.master_buf.m2s.anim_word));
 
     // Send it!
-    j3p_master_query (&g_volatile_state.g_j3p_master_ctx);
+    j3p_master_query (&g_volatile_state.j3p_master_ctx);
     g_volatile_state.slave_has_answered = 0;
     g_volatile_state.slave_query_timer = 0;
   }
@@ -165,7 +165,7 @@ static void isr_rising (void)
 
 static void isr_falling (void)
 {
-  j3p_master_on_falling (&g_volatile_state.g_j3p_master_ctx);
+  j3p_master_on_falling (&g_volatile_state.j3p_master_ctx);
 }
 
 ISR(TIMER0_COMP_vect)
@@ -217,7 +217,7 @@ static void init_state (void)
 
 static void init_comm (void)
 {
-  j3p_master_init (&g_volatile_state.g_j3p_master_ctx,
+  j3p_master_init (&g_volatile_state.j3p_master_ctx,
                    isr_master_line_up, isr_master_line_down,
                    isr_master_read_line,
                    sizeof(struct m2s_data),
