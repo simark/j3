@@ -2,7 +2,7 @@
 #define COMMON_CONFIG_H
 
 #define MAX_CUBES 6
-#define MASTER_CLK_FREQ 10000 // hz
+#define MASTER_CLK_FREQ 10000UL // hz
 
 /* Frequency at which we want to query our neighbour */
 #define SLAVE_POLL_FREQ 20 // hz
