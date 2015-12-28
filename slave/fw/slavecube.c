@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include <common-config.h>
+#include <tick.h>
 
 #include "config.h"
 
@@ -130,6 +130,8 @@ static void rising (void)
     g_state.slave_has_answered = 0;
     g_state.slave_query_timer = 0;
   }
+
+  tick ();
 }
 
 static void falling (void)
