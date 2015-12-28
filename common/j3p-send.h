@@ -14,7 +14,7 @@ struct j3p_send_fsm {
   } state;
 
   j3p_set_line_op line_up, line_down;
-  uint8_t *buf;
+  volatile uint8_t *buf;
   uint8_t bytes_left;
 
   uint8_t bits_left;
@@ -25,7 +25,7 @@ void j3p_send_init (volatile struct j3p_send_fsm *fsm,
                     j3p_set_line_op line_up,
                     j3p_set_line_op line_down,
                     uint8_t bytes_out,
-                    uint8_t *send_buf);
+                    volatile uint8_t *send_buf);
 void j3p_send_on_rising (volatile struct j3p_send_fsm *fsm);
 
 static inline uint8_t j3p_send_is_done (volatile struct j3p_send_fsm *fsm)

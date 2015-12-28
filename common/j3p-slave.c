@@ -116,7 +116,7 @@ void j3p_slave_init (volatile struct j3p_slave_ctx *ctx,
                      j3p_set_line_op line_down,
                      j3p_read_line_op read_line,
                      uint8_t bytes_in, uint8_t bytes_out,
-                     uint8_t *send_recv_buf,
+                     volatile uint8_t *send_recv_buf,
                      j3p_slave_query_op query)
 {
   ctx->line_up = line_up;

@@ -168,7 +168,7 @@ static void init_j3p (void)
                    j3p_master_read_line,
                    sizeof (struct m2s_data),
                    sizeof (struct s2m_data),
-                   (uint8_t *) &g_volatile_state.g_master_buf,
+                   (volatile uint8_t *) &g_volatile_state.g_master_buf,
                    master_query_complete);
   j3p_slave_init (&g_volatile_state.g_j3p_slave_ctx,
                   j3p_slave_line_up,
@@ -176,7 +176,7 @@ static void init_j3p (void)
                   j3p_slave_read_line,
                   sizeof (struct m2s_data),
                   sizeof (struct s2m_data),
-                  (uint8_t *) &g_volatile_state.g_slave_buf,
+                  (volatile uint8_t *) &g_volatile_state.g_slave_buf,
                   slave_query_impl);
 }
 

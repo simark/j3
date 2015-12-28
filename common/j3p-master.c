@@ -146,7 +146,7 @@ void j3p_master_init (volatile struct j3p_master_ctx *ctx,
                       j3p_set_line_op line_down,
                       j3p_read_line_op read_line,
                       uint8_t bytes_out, uint8_t bytes_in,
-                      uint8_t *send_recv_buf,
+                      volatile uint8_t *send_recv_buf,
                       j3p_master_query_complete_op query_complete)
 {
   ctx->line_up = line_up;

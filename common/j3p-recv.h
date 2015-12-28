@@ -16,7 +16,7 @@ struct j3p_recv_fsm {
 
   j3p_read_line_op read_line;
 
-  uint8_t *buf;
+  volatile uint8_t *buf;
   uint8_t bytes_left;
 
   uint8_t bits_left;
@@ -26,7 +26,7 @@ struct j3p_recv_fsm {
 void j3p_recv_init (volatile struct j3p_recv_fsm *fsm,
                     j3p_read_line_op read_line,
                     uint8_t bytes_in,
-                    uint8_t *recv_buf);
+                    volatile uint8_t *recv_buf);
 void j3p_recv_on_falling (volatile struct j3p_recv_fsm *fsm);
 
 static inline uint8_t j3p_recv_is_done (volatile struct j3p_recv_fsm *fsm)

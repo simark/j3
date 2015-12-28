@@ -222,7 +222,7 @@ static void init_comm (void)
                    isr_master_read_line,
                    sizeof(struct m2s_data),
                    sizeof(struct s2m_data),
-                   (uint8_t *) &g_volatile_state.master_buf,
+                   (volatile uint8_t *) &g_volatile_state.master_buf,
                    isr_master_query_complete);
 }
 

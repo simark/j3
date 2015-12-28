@@ -110,7 +110,7 @@ void j3p_recv_on_falling (volatile struct j3p_recv_fsm *fsm)
 void j3p_recv_init (volatile struct j3p_recv_fsm *fsm,
                     j3p_read_line_op read_line,
                     uint8_t bytes_in,
-                    uint8_t *recv_buf)
+                    volatile uint8_t *recv_buf)
 {
   fsm->read_line = read_line;
   fsm->bytes_left = bytes_in;

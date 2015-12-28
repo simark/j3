@@ -94,7 +94,7 @@ void j3p_send_init (volatile struct j3p_send_fsm *fsm,
                     j3p_set_line_op line_up,
                     j3p_set_line_op line_down,
                     uint8_t bytes_out,
-                    uint8_t *send_buf)
+                    volatile uint8_t *send_buf)
 {
   fsm->line_up = line_up;
   fsm->line_down = line_down;
