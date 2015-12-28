@@ -34,7 +34,7 @@ static struct {
                     // is zero)
 
   // Info we get from slave (and have to give to master)
-  uint8_t known_downstream_cubes[MAX_CUBES];
+  struct slave_seq slave_seq;
 } g_state;
 
 static void j3p_master_line_up (void)
@@ -77,7 +77,7 @@ static void master_query_complete (uint8_t *_buf)
   g_state.slave_has_answered = 1;
 
   /* Copy downstream cube ids from slave message */
-  memcpy (g_state.known_downstream_cubes, buf->s2m.cubes, MAX_CUBES);
+  memcpy (&g_state.slave_seq, &buf->s2m.slave_seq, sizeof (g_state.slave_seq));
 }
 
 /*
@@ -85,9 +85,8 @@ static void master_query_complete (uint8_t *_buf)
  */
 static void slave_timeout (void)
 {
-  memset (g_state.known_downstream_cubes, 0,
-          sizeof (g_state.known_downstream_cubes));
-  PORTB |= _BV(PB0);
+  memset (&g_state.slave_seq, 0,
+          sizeof (g_state.slave_seq));
 }
 
 /*
@@ -103,9 +102,9 @@ static void slave_query_impl (uint8_t *_buf)
   memcpy (&g_state.anim_word, &buf->m2s.anim_word, sizeof (struct anim_word));
 
   /* Then, fill the buffer with our info. */
-
-  buf->s2m.cubes[0] = g_state.my_id;
-  memcpy (buf->s2m.cubes + 1, g_state.known_downstream_cubes, MAX_CUBES - 1);
+  buf->s2m.slave_seq.ids[0] = g_state.my_id;
+  memcpy(buf->s2m.slave_seq.ids + 1, g_state.slave_seq.ids,
+         sizeof(buf->s2m.slave_seq.ids) - sizeof(buf->s2m.slave_seq.ids[0]));
 }
 
 static void rising (void)

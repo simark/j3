@@ -12,6 +12,10 @@ enum anim_pattern {
   ANIM_PATTERN_TODO,
 };
 
+struct slave_seq {
+  uint8_t ids[MAX_CUBES];
+};
+
 struct m2s_data {
   uint8_t rank;
 
@@ -22,7 +26,7 @@ struct m2s_data {
 };
 
 struct s2m_data {
-  uint8_t cubes[MAX_CUBES];
+  struct slave_seq slave_seq;
 };
 
 typedef union {

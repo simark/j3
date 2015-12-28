@@ -29,7 +29,7 @@ static volatile struct {
 
   // Our idea of the present slaves.  The slave ids start at 1, so 0 means
   // "no slave present".
-  uint8_t slave_sequence[MAX_CUBES];
+  struct slave_seq slave_seq;
 
   // Incremented once per clock cycle.  Once this reaches SLAVE_QUERY_TIMER_MAX,
   // we initiate a slave query.
@@ -58,8 +58,15 @@ static volatile struct {
   } beep;
 
   struct {
-    uint8_t in_menu;
-  } render;
+    enum {
+      PAGE_SOUND,
+      PAGE_SOUND_MENU,
+      PAGE_SOUND_MELODY,
+      PAGE_SOUND_MELODY_EDIT,
+      PAGE_CUSTOM,
+      PAGE_CUSTOM_
+    } page;
+  } menu;
 } g_state;
 
 static uint8_t tick_expired(tick_t start, tick_t end)
@@ -77,10 +84,10 @@ static uint8_t tick_expired(tick_t start, tick_t end)
  *
  * @param slave_sequence Pointer to an array of MAX_CUBES uint8_t's.
  */
-void get_slave_sequence (uint8_t *slave_sequence)
+void get_slave_sequence (struct slave_seq *slave_seq)
 {
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
-    memcpy (slave_sequence, (void *) g_state.slave_sequence, MAX_CUBES);
+    memcpy (slave_seq, (void *) &g_state.slave_seq, sizeof (*slave_seq));
   }
 }
 
@@ -93,7 +100,7 @@ uint8_t get_slave_count (void)
 
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
     for (cnt = 0;
-         cnt < MAX_CUBES && g_state.slave_sequence[cnt] != 0;
+         cnt < MAX_CUBES && g_state.slave_seq.ids[cnt] != 0;
          cnt++);
   }
 
@@ -460,7 +467,7 @@ static void master_query_complete (uint8_t *_buf)
   g_state.slave_has_answered = 1;
   slave_is_alive();
 
-  memcpy ((void *) g_state.slave_sequence, buf->s2m.cubes, MAX_CUBES);
+  memcpy ((void *) &g_state.slave_seq, &buf->s2m.slave_seq, sizeof (g_state.slave_seq));
 }
 
 static void init_state (void)
@@ -543,11 +550,7 @@ static void input_loop (void) {
 
 static void render_loop (void)
 {
-  if (g_state.render.in_menu) {
 
-  } else {
-
-  }
 }
 
 static void loop ()
