@@ -1,6 +1,6 @@
 #include "tick.h"
 
-static tick_t tick_cnt = 0;
+static volatile tick_t tick_cnt = 0;
 
 void tick (void)
 {
