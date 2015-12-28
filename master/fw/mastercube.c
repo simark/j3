@@ -6,20 +6,11 @@
 #include <util/delay.h>
 #include "settings.h"
 #include "config.h"
+#include "btn.h"
 
 static struct j3p_master_ctx g_j3p_master_ctx;
 
 static comm_buf g_master_buf;
-
-struct btn_state {
-  enum btn_state_value {
-    BTN_UNPRESSED = 0,
-    BTN_DEBOUNCING,
-    BTN_PRESSED,
-  } value;
-
-  tick_t start, end;
-};
 
 enum input_event {
   IE_BTN0_SHORT,
@@ -553,45 +544,6 @@ static void status_led_blue (void)
   STATUS_LED_GREEN_PORT |= STATUS_LED_GREEN_MASK;
 }
 
-static void btn_state_change(volatile struct btn_state *state,
-                             uint8_t read_value)
-{
-  switch (state->value) {
-  case BTN_UNPRESSED:
-    if (read_value) {
-      state->value = BTN_DEBOUNCING;
-      state->start = get_tick ();
-      state->end = get_tick () + BTN_DEBOUNCE_TICKS;
-    } else {
-      state->value = BTN_UNPRESSED;
-    }
-    break;
-
-  case BTN_DEBOUNCING:
-    if (read_value) {
-      if (tick_expired (state->start, state->end)) {
-        // It looks like the real thing!
-        state->value = BTN_PRESSED;
-      } else {
-        // Wait some more.
-        state->value = BTN_DEBOUNCING;
-      }
-    } else {
-      state->value = BTN_UNPRESSED;
-    }
-    break;
-
-  case BTN_PRESSED:
-    if (read_value) {
-      state->value = BTN_PRESSED;
-    } else {
-      state->value = BTN_UNPRESSED;
-    }
-    break;
-  }
-}
-
-
 static void beep_loop (void)
 {
   if (g_state.beep.playing &&
@@ -757,16 +709,6 @@ static void input_state_change (volatile struct input_state *state,
   }
 }
 
-static uint8_t btn0_val (void)
-{
-  return BTN0_PIN & BTN0_MASK;
-}
-
-static uint8_t btn1_val (void)
-{
-  return BTN1_PIN & BTN1_MASK;
-}
-
 /* Called when a slave query times out. */
 static void slave_timeout (void)
 {
@@ -904,10 +846,23 @@ static void init_state_led (void)
   STATUS_LED_ANODE_PORT |= STATUS_LED_ANODE_MASK;
 }
 
-static void init_inputs (void)
+static void init_buttons (void)
 {
   BTN0_DDR &= ~BTN0_MASK;
   BTN1_DDR &= ~BTN1_MASK;
+
+  uint8_t btn0_val (void)
+  {
+    return BTN0_PIN & BTN0_MASK;
+  }
+
+  uint8_t btn1_val (void)
+  {
+    return BTN1_PIN & BTN1_MASK;
+  }
+
+  init_btn (&g_state.btn0, btn0_val);
+  init_btn (&g_state.btn1, btn1_val);
 }
 
 static void init_alsa (void)
@@ -924,11 +879,11 @@ static void init_alsa (void)
 }
 
 static void input_loop (void) {
-  btn_state_change (&g_state.btn0, btn0_val ());
-  btn_state_change (&g_state.btn1, btn1_val ());
+  btn_loop (&g_state.btn0);
+  btn_loop (&g_state.btn1);
   input_state_change (&g_state.input_fsm,
-                      g_state.btn0.value,
-                      g_state.btn1.value);
+                      btn_get_state(&g_state.btn0),
+                      btn_get_state(&g_state.btn1));
 }
 
 static void render_loop (void)
@@ -968,7 +923,7 @@ int main (void)
   init_comm ();
   init_clk ();
   init_state_led ();
-  init_inputs ();
+  init_buttons ();
   init_alsa ();
   init_settings ();
 
