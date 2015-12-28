@@ -7,18 +7,11 @@
 #include "settings.h"
 #include "config.h"
 #include "btn.h"
+#include "input.h"
 
 static struct j3p_master_ctx g_j3p_master_ctx;
 
 static comm_buf g_master_buf;
-
-enum input_event {
-  IE_BTN0_SHORT,
-  IE_BTN0_LONG,
-  IE_BTN1_SHORT,
-  IE_BTN1_LONG,
-  IE_BOTH,
-};
 
 struct note {
   tick_t duration;
@@ -53,16 +46,7 @@ static volatile struct {
 
   struct btn_state btn0;
   struct btn_state btn1;
-  struct input_state {
-    enum {
-      INPUT_ALL_UNPRESSED = 0,
-      INPUT_BTN0_PENDING,
-      INPUT_BTN1_PENDING,
-      INPUT_DONE,
-    } value;
-
-    tick_t start, end;
-  } input_fsm;
+  struct input_state input;
 
   struct {
     tick_t start, end;
@@ -643,72 +627,6 @@ static void input_event (enum input_event ev)
   }
 }
 
-static void input_state_change (volatile struct input_state *state,
-                                enum btn_state_value btn0,
-                                enum btn_state_value btn1)
-{
-  switch (state->value) {
-  case INPUT_ALL_UNPRESSED:
-    if (btn0 == BTN_PRESSED) {
-      state->start = get_tick ();
-      state->end = get_tick () + INPUT_LONG_PRESS_TICKS;
-      state->value = INPUT_BTN0_PENDING;
-    } else if (btn1 == BTN_PRESSED) {
-      state->start = get_tick ();
-      state->end = get_tick () + INPUT_LONG_PRESS_TICKS;
-      state->value = INPUT_BTN1_PENDING;
-    } else {
-      state->value = INPUT_ALL_UNPRESSED;
-    }
-    break;
-
-  case INPUT_BTN0_PENDING:
-    if (btn0 == BTN_UNPRESSED) {
-      input_event (IE_BTN0_SHORT);
-      state->value = INPUT_DONE;
-    } else if (tick_expired (state->start,
-                             state->end)) {
-      if (btn1 == BTN_PRESSED) {
-        input_event (IE_BOTH);
-        state->value = INPUT_DONE;
-      } else {
-        input_event (IE_BTN0_LONG);
-        state->value = INPUT_DONE;
-      }
-    } else {
-      state->value = INPUT_BTN0_PENDING;
-    }
-    break;
-
-  case INPUT_BTN1_PENDING:
-    if (btn1 == BTN_UNPRESSED) {
-      input_event (IE_BTN1_SHORT);
-      state->value = INPUT_DONE;
-    } else if (tick_expired (state->start,
-                             state->end)) {
-      if (btn0 == BTN_PRESSED) {
-        input_event (IE_BOTH);
-        state->value = INPUT_DONE;
-      } else {
-        input_event (IE_BTN1_LONG);
-        state->value = INPUT_DONE;
-      }
-    } else {
-      state->value = INPUT_BTN1_PENDING;
-    }
-    break;
-
-  case INPUT_DONE:
-    if (btn0 == BTN_UNPRESSED
-        && btn1 == BTN_UNPRESSED) {
-      state->value = INPUT_ALL_UNPRESSED;
-    } else {
-      state->value = INPUT_DONE;
-    }
-    break;
-  }
-}
-
 /* Called when a slave query times out. */
 static void slave_timeout (void)
 {
@@ -865,6 +783,21 @@ static void init_buttons (void)
   init_btn (&g_state.btn1, btn1_val);
 }
 
+static void init_inputs (void)
+{
+  enum btn_state_value btn0_state (void)
+  {
+    return btn_get_state (&g_state.btn0);
+  }
+
+  enum btn_state_value btn1_state (void)
+  {
+    return btn_get_state (&g_state.btn1);
+  }
+
+  init_input (&g_state.input, btn0_state, btn1_state, input_event);
+}
+
 static void init_alsa (void)
 {
   // CTC mode, toggle OC2 on compare, prescaler = 64
@@ -876,14 +809,6 @@ static void init_alsa (void)
   PIEZO_PASSIVE_PORT &= ~PIEZO_PASSIVE_MASK;
 
   PIEZO_ACTIVE_DDR |= PIEZO_ACTIVE_MASK;
-}
-
-static void input_loop (void) {
-  btn_loop (&g_state.btn0);
-  btn_loop (&g_state.btn1);
-  input_state_change (&g_state.input_fsm,
-                      btn_get_state(&g_state.btn0),
-                      btn_get_state(&g_state.btn1));
 }
 
 static void render_loop (void)
@@ -905,7 +830,9 @@ static void status_led_loop (void)
 static void loop ()
 {
   for (;;) {
-    input_loop ();
+    btn_loop (&g_state.btn0);
+    btn_loop (&g_state.btn1);
+    input_loop (&g_state.input);
     beep_loop ();
     render_loop ();
     status_led_loop ();
@@ -924,6 +851,7 @@ int main (void)
   init_clk ();
   init_state_led ();
   init_buttons ();
+  init_inputs ();
   init_alsa ();
   init_settings ();
 
