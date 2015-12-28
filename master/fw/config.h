@@ -3,6 +3,14 @@
 
 #include <common-config.h>
 
+#define IE_MENU IE_BTN1_LONG
+
+#define IE_ENTER IE_BTN1_LONG
+#define IE_UP IE_BTN0_SHORT
+#define IE_DOWN IE_BTN1_SHORT
+#define IE_BACK IE_BTN0_LONG
+#define IE_EXIT IE_BOTH
+
 #define BTN_DEBOUNCE_MS 10UL
 #define BTN_DEBOUNCE_TICKS MS_TO_TICKS(BTN_DEBOUNCE_MS)
 #define INPUT_LONG_PRESS_MS 750UL

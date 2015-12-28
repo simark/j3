@@ -10,23 +10,11 @@
 #include "config.h"
 #include "btn.h"
 #include "input.h"
+#include "menu.h"
 
 static struct j3p_master_ctx g_j3p_master_ctx;
 
 static comm_buf g_master_buf;
-
-#define IE_MENU IE_BTN1_LONG
-
-#define IE_ENTER IE_BTN1_LONG
-#define IE_UP IE_BTN0_SHORT
-#define IE_DOWN IE_BTN1_SHORT
-#define IE_BACK IE_BTN0_LONG
-#define IE_EXIT IE_BOTH
-
-struct page {
-  void (*render)(void);
-  void (*input_event)(enum input_event);
-};
 
 static volatile struct {
   // The word we currently display
@@ -45,11 +33,6 @@ static volatile struct {
   struct btn_state btn1;
   struct input_state input;
   struct beep_state beep;
-
-  struct {
-    struct page *cur_page;
-    uint8_t cur_custom_anim_word_idx;
-  } menu;
 } g_state;
 
 
@@ -65,12 +48,6 @@ static uint8_t beep_freq_table[] = {
   250,
 };
 
-static void beep_menu (struct beep_note *song)
-{
-  if (settings_get_sound_menu ()) {
-    beep (&g_state.beep, song);
-  }
-}
 /*
 static void beep_melody (struct beep_note *song)
 {
@@ -78,359 +55,6 @@ static void beep_melody (struct beep_note *song)
     beep (song);
   }
 }*/
-
-#define PAGE_RENDER(name) \
-static void page_##name##_render (void)
-
-#define PAGE_INPUT_EVENT(name) \
-static void page_##name##_input_event (enum input_event ev)
-
-#define PAGE(name) \
-extern struct page page_##name; \
-PAGE_RENDER(name); \
-PAGE_INPUT_EVENT(name); \
-struct page page_##name = { \
-  page_##name##_render, \
-  page_##name##_input_event, \
-}
-
-PAGE(about);
-PAGE(about_scroll);
-PAGE(custom);
-PAGE(custom_select);
-PAGE(custom_show);
-PAGE(custom_show_show);
-PAGE(custom_set);
-PAGE(custom_enable);
-PAGE(custom_chars);
-PAGE(custom_chars_edit);
-PAGE(custom_anim);
-PAGE(custom_anim_edit);
-PAGE(sound);
-PAGE(sound_menu);
-PAGE(sound_melody);
-
-#define PAGE_GOTO(input, dest) \
-case input: \
-  g_state.menu.cur_page = &page_##dest; \
-  break
-
-#define MENU_QUIT(input) \
-case input: \
-  g_state.menu.cur_page = NULL; \
-  break
-
-PAGE_RENDER(about)
-{
-
-}
-
-PAGE_INPUT_EVENT(about)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_UP, custom);
-  PAGE_GOTO(IE_DOWN, sound);
-  PAGE_GOTO(IE_ENTER, about_scroll);
-  MENU_QUIT(IE_BACK);
-
-  default:
-    break;
-  }
-}
-
-
-PAGE_RENDER(about_scroll)
-{
-
-}
-
-PAGE_INPUT_EVENT(about_scroll)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, about);
-  PAGE_GOTO(IE_ENTER, about);
-  PAGE_GOTO(IE_DOWN, about);
-  PAGE_GOTO(IE_UP, about);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_UP, sound);
-  PAGE_GOTO(IE_DOWN, about);
-  MENU_QUIT(IE_BACK);
-
-  case IE_ENTER:
-    g_state.menu.cur_page = &page_custom_select;
-    g_state.menu.cur_custom_anim_word_idx = 0;
-    break;
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_select)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_select)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_ENTER, custom_show);
-  PAGE_GOTO(IE_BACK, custom);
-
-  case IE_UP:
-    if (g_state.menu.cur_custom_anim_word_idx == 0) {
-      g_state.menu.cur_custom_anim_word_idx = NUM_CUSTOM_ANIM_WORDS - 1;
-    } else {
-      g_state.menu.cur_custom_anim_word_idx--;
-    }
-    break;
-
-  case IE_DOWN:
-    if (g_state.menu.cur_custom_anim_word_idx == (NUM_CUSTOM_ANIM_WORDS - 1)) {
-      g_state.menu.cur_custom_anim_word_idx = 0;
-    } else {
-      g_state.menu.cur_custom_anim_word_idx++;
-    }
-    break;
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_show)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_show)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_select);
-  PAGE_GOTO(IE_UP, custom_anim);
-  PAGE_GOTO(IE_DOWN, custom_set);
-  PAGE_GOTO(IE_ENTER, custom_show_show);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_show_show)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_show_show)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_show);
-  PAGE_GOTO(IE_ENTER, custom_show);
-  PAGE_GOTO(IE_DOWN, custom_show);
-  PAGE_GOTO(IE_UP, custom_show);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_set)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_set)
-{
-  switch (ev) {
-
-  case IE_ENTER:
-    // TODO save slave_seq / custom anim
-    break;
-
-  PAGE_GOTO(IE_BACK, custom_select);
-  PAGE_GOTO(IE_DOWN, custom_enable);
-  PAGE_GOTO(IE_UP, custom_show);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_enable)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_enable)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_select);
-  PAGE_GOTO(IE_DOWN, custom_chars);
-  PAGE_GOTO(IE_UP, custom_set);
-
-  case IE_ENTER:
-    // TODO: save settings
-    break;
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_chars)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_chars)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_select);
-  PAGE_GOTO(IE_ENTER, custom_chars_edit);
-  PAGE_GOTO(IE_DOWN, custom_anim);
-  PAGE_GOTO(IE_UP, custom_enable);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_chars_edit)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_chars_edit)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_chars);
-
-  case IE_ENTER:
-    break;
-  case IE_DOWN:
-    break;
-  case IE_UP:
-    break;
-    // All 3 todo
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_anim)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_anim)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_select);
-  PAGE_GOTO(IE_ENTER, custom_anim_edit);
-  PAGE_GOTO(IE_DOWN, custom_show);
-  PAGE_GOTO(IE_UP, custom_chars);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(custom_anim_edit)
-{
-
-}
-
-PAGE_INPUT_EVENT(custom_anim_edit)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_BACK, custom_anim);
-
-  case IE_ENTER:
-    break;
-  case IE_DOWN:
-    break;
-  case IE_UP:
-    break;
-    // All 3 todo
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(sound)
-{
-
-}
-
-PAGE_INPUT_EVENT(sound)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_UP, about);
-  PAGE_GOTO(IE_DOWN, custom);
-  PAGE_GOTO(IE_ENTER, sound_menu);
-  MENU_QUIT(IE_BACK);
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(sound_menu)
-{
-
-}
-
-PAGE_INPUT_EVENT(sound_menu)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_UP, sound_melody);
-  PAGE_GOTO(IE_DOWN, sound_melody);
-  PAGE_GOTO(IE_BACK, sound);
-
-  case IE_ENTER:
-    settings_set_sound_menu (!settings_get_sound_menu ());
-    break;
-
-  default:
-    break;
-  }
-}
-
-PAGE_RENDER(sound_melody)
-{
-
-}
-
-PAGE_INPUT_EVENT(sound_melody)
-{
-  switch (ev) {
-  PAGE_GOTO(IE_UP, sound_menu);
-  PAGE_GOTO(IE_DOWN, sound_menu);
-  PAGE_GOTO(IE_BACK, sound);
-
-  case IE_ENTER:
-    settings_set_sound_melody (!settings_get_sound_melody ());
-    break;
-
-  default:
-    break;
-  }
-}
 
 /*
  * Get the current sequence of slaves present.
@@ -497,86 +121,9 @@ static void status_led_blue (void)
   STATUS_LED_GREEN_PORT |= STATUS_LED_GREEN_MASK;
 }
 
-static struct beep_note song_down[] = {
-  { MS_TO_TICKS(50), 5 },
-  { 0, 0 },
-};
-
-static struct beep_note song_up[] = {
-  { MS_TO_TICKS(50), 7 },
-  { 0, 0 },
-};
-
-static struct beep_note song_back[] = {
-  { MS_TO_TICKS(50), 5 },
-  { MS_TO_TICKS(50), 7 },
-  { 0, 0 },
-};
-
-static struct beep_note song_enter[] = {
-  { MS_TO_TICKS(50), 7 },
-  { MS_TO_TICKS(50), 5 },
-  { 0, 0 },
-};
-
-static struct beep_note song_exit_menu[] = {
-  { MS_TO_TICKS(50), 5 },
-  { MS_TO_TICKS(50), 6 },
-  { MS_TO_TICKS(50), 7 },
-  { 0, 0 },
-};
-
-static struct beep_note song_enter_menu[] = {
-  { MS_TO_TICKS(50), 7 },
-  { MS_TO_TICKS(50), 6 },
-  { MS_TO_TICKS(50), 5 },
-  { 0, 0 },
-};
-
-static void menu_input_event (enum input_event ev)
-{
-  if (ev == IE_EXIT) {
-    g_state.menu.cur_page = NULL;
-  } else {
-    g_state.menu.cur_page->input_event (ev);
-  }
-
-  if (g_state.menu.cur_page == NULL) {
-    beep_menu (song_exit_menu);
-  } else {
-    switch (ev) {
-    case IE_UP:
-      beep_menu (song_up);
-      break;
-
-    case IE_ENTER:
-      beep_menu (song_enter);
-      break;
-
-    case IE_DOWN:
-      beep_menu (song_down);
-      break;
-
-    case IE_BACK:
-      beep_menu (song_back);
-      break;
-
-    case IE_EXIT:
-      break;
-    }
-  }
-}
-
 static void input_event (enum input_event ev)
 {
-  if (g_state.menu.cur_page != NULL) {
-    menu_input_event (ev);
-  } else {
-    if (ev == IE_MENU) {
-      beep_menu (song_enter_menu);
-      g_state.menu.cur_page = &page_sound;
-    }
-  }
+  menu_input_event (&menu_instance, ev);
 }
 
 /* Called when a slave query times out. */
@@ -784,7 +331,7 @@ static void render_loop (void)
 
 static void status_led_loop (void)
 {
-  if (g_state.menu.cur_page != NULL) {
+  if (menu_active (&menu_instance)) {
     status_led_green ();
   } else if (get_slave_count() > 0) {
     status_led_blue ();
@@ -820,6 +367,7 @@ int main (void)
   init_inputs ();
   init_alsa ();
   init_settings ();
+  init_menu (&menu_instance, &g_state.beep);
 
   play_intro ();
 
