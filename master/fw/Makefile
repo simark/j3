@@ -56,12 +56,7 @@ $(TARGET_HEX): $(TARGET_OUT)
 
 # program target
 program: $(TARGET_HEX)
-	if [ -z "$(CUBE_ID)" ]; then echo "CUBE_ID not set."; exit 1; fi
-	echo -n -e "\00$(CUBE_ID)" > cubeid.raw
-	$(PROG) $(PROGFLAGS) -U flash:w:$(TARGET_HEX) -U eeprom:w:cubeid.raw:r
-
-program-%:
-	make program CUBE_ID=$*
+	$(PROG) $(PROGFLAGS) -U flash:w:$(TARGET_HEX)
 
 # objects from C files
 %.o: %.c
