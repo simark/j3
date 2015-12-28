@@ -3,9 +3,6 @@
 
 #include <common-config.h>
 
-#define MS_TO_TICKS(ms) ((MASTER_CLK_FREQ * (ms)) / 1000)
-
-typedef uint16_t tick_t;
 #define BTN_DEBOUNCE_MS 10UL
 #define BTN_DEBOUNCE_TICKS MS_TO_TICKS(BTN_DEBOUNCE_MS)
 #define INPUT_LONG_PRESS_MS 750UL
