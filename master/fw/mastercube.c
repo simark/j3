@@ -50,9 +50,15 @@ static struct {
 
     tick_t start, end;
   } input_fsm;
+
+  struct {
+    tick_t start, end;
+    struct note *song;
+    uint8_t playing;
+  } beep;
 } g_state;
 
-uint8_t tick_expired(tick_t start, tick_t end)
+static uint8_t tick_expired(tick_t start, tick_t end)
 {
     tick_t current = g_state.tick;
     if (start < end) {
@@ -174,21 +180,93 @@ enum input_event {
   IE_BOTH,
 };
 
+struct note {
+  tick_t duration;
+  uint8_t freq_idx;
+};
+
+struct note song1[] = {
+  { MS_TO_TICKS(100), 0 },
+  { MS_TO_TICKS(100), 1 },
+  { MS_TO_TICKS(100), 2 },
+  { MS_TO_TICKS(100), 3 },
+  { MS_TO_TICKS(100), 4 },
+  { MS_TO_TICKS(100), 5 },
+  { MS_TO_TICKS(100), 6 },
+  { MS_TO_TICKS(100), 7 },
+  { MS_TO_TICKS(100), 8 },
+  { 0, 0 },
+};
+
+static uint8_t alsa_freq_table[] = {
+  25,
+  50,
+  100,
+  125,
+  150,
+  175,
+  200,
+  225,
+  250,
+};
+
+static void alsa_off (void)
+{
+  TCCR2 &= ~_BV(COM20);
+  g_state.beep.playing = 0;
+}
+
+static void alsa_on (uint8_t freq_idx)
+{
+  TCCR2 |= _BV(COM20);
+  OCR2 = alsa_freq_table[freq_idx];
+  g_state.beep.playing = 1;
+}
+
+static void beep (struct note *song)
+{
+  g_state.beep.start = g_state.tick;
+  g_state.beep.end = g_state.tick + song->duration;
+
+  alsa_on(song->freq_idx);
+
+  g_state.beep.song = song + 1;
+}
+
+static void beep_loop (void)
+{
+  if (g_state.beep.playing &&
+      tick_expired (g_state.beep.start, g_state.beep.end)) {
+    if (g_state.beep.song->duration != 0) {
+      g_state.beep.start = g_state.tick;
+      g_state.beep.end = g_state.tick + g_state.beep.song->duration;
+
+      alsa_on (g_state.beep.song->freq_idx);
+
+      g_state.beep.song++;
+    } else {
+      alsa_off ();
+    }
+  }
+}
+
 static void input_event (enum input_event ev)
 {
   switch (ev) {
   case IE_BTN0_SHORT:
+    beep (song1);
     break;
   case IE_BTN0_LONG:
-    status_led_green();
+    beep (song1);
     break;
   case IE_BTN1_SHORT:
+    beep (song1);
     break;
   case IE_BTN1_LONG:
-    status_led_red();
+    beep (song1);
     break;
   case IE_BOTH:
-    status_led_blue();
+    beep (song1);
     break;
   }
 }
@@ -269,15 +347,6 @@ static uint8_t btn1_val (void)
   return BTN1_PIN & BTN1_MASK;
 }
 
-static void check_inputs (void)
-{
-  btn_state_change (&g_state.btn0, btn0_val ());
-  btn_state_change (&g_state.btn1, btn1_val ());
-  input_state_change (&g_state.input_fsm,
-                      g_state.btn0.value,
-                      g_state.btn1.value);
-}
-
 /* Called when a slave query times out. */
 static void slave_timeout (void)
 {
@@ -315,7 +384,6 @@ static void rising (void)
   }
 
   g_state.tick++;
-  check_inputs ();
 }
 
 static void falling (void)
@@ -429,9 +497,33 @@ static void init_inputs (void)
   BTN1_DDR &= ~BTN1_MASK;
 }
 
+static void init_alsa (void)
+{
+  // CTC mode, toggle OC2 on compare, prescaler = 64
+  TCCR2 |= _BV(WGM21) | _BV(CS22);
+  TCNT2 = 0x00;
+  OCR2 = 0xff;
+
+  PIEZO_PASSIVE_DDR |= PIEZO_PASSIVE_MASK;
+  PIEZO_PASSIVE_PORT &= ~PIEZO_PASSIVE_MASK;
+
+  PIEZO_ACTIVE_DDR |= PIEZO_ACTIVE_MASK;
+}
+
+static void input_loop (void) {
+  btn_state_change (&g_state.btn0, btn0_val ());
+  btn_state_change (&g_state.btn1, btn1_val ());
+  input_state_change (&g_state.input_fsm,
+                      g_state.btn0.value,
+                      g_state.btn1.value);
+}
+
 static void loop ()
 {
-  for (;;);
+  for (;;) {
+    input_loop ();
+    beep_loop ();
+  }
 }
 
 int main (void)
@@ -441,6 +533,14 @@ int main (void)
   init_clk ();
   init_state_led ();
   init_inputs ();
+  init_alsa ();
+
+  while (0) {
+    PORTD |= _BV(PD7);
+    _delay_ms(10);
+    PORTD &= ~_BV(PD7);
+    _delay_ms(10);
+  }
 
   status_led_red();
   _delay_ms(200);
