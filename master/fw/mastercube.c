@@ -4,6 +4,8 @@
 #include <string.h>
 #include <util/atomic.h>
 #include <util/delay.h>
+
+#include "beep.h"
 #include "settings.h"
 #include "config.h"
 #include "btn.h"
@@ -12,11 +14,6 @@
 static struct j3p_master_ctx g_j3p_master_ctx;
 
 static comm_buf g_master_buf;
-
-struct note {
-  tick_t duration;
-  uint8_t freq_idx;
-};
 
 #define IE_MENU IE_BTN1_LONG
 
@@ -47,12 +44,7 @@ static volatile struct {
   struct btn_state btn0;
   struct btn_state btn1;
   struct input_state input;
-
-  struct {
-    tick_t start, end;
-    struct note *song;
-    uint8_t playing;
-  } beep;
+  struct beep_state beep;
 
   struct {
     struct page *cur_page;
@@ -61,7 +53,7 @@ static volatile struct {
 } g_state;
 
 
-static uint8_t alsa_freq_table[] = {
+static uint8_t beep_freq_table[] = {
   25,
   50,
   100,
@@ -73,37 +65,14 @@ static uint8_t alsa_freq_table[] = {
   250,
 };
 
-static void alsa_off (void)
-{
-  TCCR2 &= ~_BV(COM20);
-  g_state.beep.playing = 0;
-}
-
-static void alsa_on (uint8_t freq_idx)
-{
-  TCCR2 |= _BV(COM20);
-  OCR2 = alsa_freq_table[freq_idx];
-  g_state.beep.playing = 1;
-}
-
-static void beep (struct note *song)
-{
-  g_state.beep.start = get_tick ();
-  g_state.beep.end = get_tick () + song->duration;
-
-  alsa_on(song->freq_idx);
-
-  g_state.beep.song = song + 1;
-}
-
-static void beep_menu (struct note *song)
+static void beep_menu (struct beep_note *song)
 {
   if (settings_get_sound_menu ()) {
-    beep (song);
+    beep (&g_state.beep, song);
   }
 }
 /*
-static void beep_melody (struct note *song)
+static void beep_melody (struct beep_note *song)
 {
   if (settings_get_sound_melody ()) {
     beep (song);
@@ -528,53 +497,36 @@ static void status_led_blue (void)
   STATUS_LED_GREEN_PORT |= STATUS_LED_GREEN_MASK;
 }
 
-static void beep_loop (void)
-{
-  if (g_state.beep.playing &&
-      tick_expired (g_state.beep.start, g_state.beep.end)) {
-    if (g_state.beep.song->duration != 0) {
-      g_state.beep.start = get_tick ();
-      g_state.beep.end = get_tick () + g_state.beep.song->duration;
-
-      alsa_on (g_state.beep.song->freq_idx);
-
-      g_state.beep.song++;
-    } else {
-      alsa_off ();
-    }
-  }
-}
-
-static struct note song_down[] = {
+static struct beep_note song_down[] = {
   { MS_TO_TICKS(50), 5 },
   { 0, 0 },
 };
 
-static struct note song_up[] = {
+static struct beep_note song_up[] = {
   { MS_TO_TICKS(50), 7 },
   { 0, 0 },
 };
 
-static struct note song_back[] = {
+static struct beep_note song_back[] = {
   { MS_TO_TICKS(50), 5 },
   { MS_TO_TICKS(50), 7 },
   { 0, 0 },
 };
 
-static struct note song_enter[] = {
+static struct beep_note song_enter[] = {
   { MS_TO_TICKS(50), 7 },
   { MS_TO_TICKS(50), 5 },
   { 0, 0 },
 };
 
-static struct note song_exit_menu[] = {
+static struct beep_note song_exit_menu[] = {
   { MS_TO_TICKS(50), 5 },
   { MS_TO_TICKS(50), 6 },
   { MS_TO_TICKS(50), 7 },
   { 0, 0 },
 };
 
-static struct note song_enter_menu[] = {
+static struct beep_note song_enter_menu[] = {
   { MS_TO_TICKS(50), 7 },
   { MS_TO_TICKS(50), 6 },
   { MS_TO_TICKS(50), 5 },
@@ -809,6 +761,20 @@ static void init_alsa (void)
   PIEZO_PASSIVE_PORT &= ~PIEZO_PASSIVE_MASK;
 
   PIEZO_ACTIVE_DDR |= PIEZO_ACTIVE_MASK;
+
+
+  void beep_off (void)
+  {
+    TCCR2 &= ~_BV(COM20);
+  }
+
+  void beep_on (uint8_t freq_idx)
+  {
+    TCCR2 |= _BV(COM20);
+    OCR2 = beep_freq_table[freq_idx];
+  }
+
+  init_beep (&g_state.beep, beep_on, beep_off);
 }
 
 static void render_loop (void)
@@ -833,7 +799,7 @@ static void loop ()
     btn_loop (&g_state.btn0);
     btn_loop (&g_state.btn1);
     input_loop (&g_state.input);
-    beep_loop ();
+    beep_loop (&g_state.beep);
     render_loop ();
     status_led_loop ();
   }
