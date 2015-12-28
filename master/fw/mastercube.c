@@ -1,5 +1,6 @@
 #include <j3p.h>
 #include <common-config.h>
+#include <tick.h>
 #include <string.h>
 #include <util/atomic.h>
 #include <util/delay.h>
@@ -59,8 +60,6 @@ static volatile struct {
   uint16_t slave_query_timer;
   uint8_t slave_has_answered;
 
-  tick_t tick;
-
   struct btn_state btn0;
   struct btn_state btn1;
   struct input_state {
@@ -114,8 +113,8 @@ static void alsa_on (uint8_t freq_idx)
 
 static void beep (struct note *song)
 {
-  g_state.beep.start = g_state.tick;
-  g_state.beep.end = g_state.tick + song->duration;
+  g_state.beep.start = get_tick ();
+  g_state.beep.end = get_tick () + song->duration;
 
   alsa_on(song->freq_idx);
 
@@ -489,17 +488,6 @@ PAGE_INPUT_EVENT(sound_melody)
   }
 }
 
-
-static uint8_t tick_expired(tick_t start, tick_t end)
-{
-    tick_t current = g_state.tick;
-    if (start < end) {
-        return current < start || current > end;
-    } else {
-        return current < start && current > end;
-    }
-}
-
 /*
  * Get the current sequence of slaves present.
  *
@@ -572,8 +560,8 @@ static void btn_state_change(volatile struct btn_state *state,
   case BTN_UNPRESSED:
     if (read_value) {
       state->value = BTN_DEBOUNCING;
-      state->start = g_state.tick;
-      state->end = g_state.tick + BTN_DEBOUNCE_TICKS;
+      state->start = get_tick ();
+      state->end = get_tick () + BTN_DEBOUNCE_TICKS;
     } else {
       state->value = BTN_UNPRESSED;
     }
@@ -609,8 +597,8 @@ static void beep_loop (void)
   if (g_state.beep.playing &&
       tick_expired (g_state.beep.start, g_state.beep.end)) {
     if (g_state.beep.song->duration != 0) {
-      g_state.beep.start = g_state.tick;
-      g_state.beep.end = g_state.tick + g_state.beep.song->duration;
+      g_state.beep.start = get_tick ();
+      g_state.beep.end = get_tick () + g_state.beep.song->duration;
 
       alsa_on (g_state.beep.song->freq_idx);
 
@@ -710,12 +698,12 @@ static void input_state_change (volatile struct input_state *state,
   switch (state->value) {
   case INPUT_ALL_UNPRESSED:
     if (btn0 == BTN_PRESSED) {
-      state->start = g_state.tick;
-      state->end = g_state.tick + INPUT_LONG_PRESS_TICKS;
+      state->start = get_tick ();
+      state->end = get_tick () + INPUT_LONG_PRESS_TICKS;
       state->value = INPUT_BTN0_PENDING;
     } else if (btn1 == BTN_PRESSED) {
-      state->start = g_state.tick;
-      state->end = g_state.tick + INPUT_LONG_PRESS_TICKS;
+      state->start = get_tick ();
+      state->end = get_tick () + INPUT_LONG_PRESS_TICKS;
       state->value = INPUT_BTN1_PENDING;
     } else {
       state->value = INPUT_ALL_UNPRESSED;
@@ -814,7 +802,7 @@ static void rising (void)
     g_state.slave_query_timer = 0;
   }
 
-  g_state.tick++;
+  tick ();
 }
 
 static void falling (void)
