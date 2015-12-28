@@ -28,6 +28,11 @@ enum input_event {
   IE_BOTH,
 };
 
+struct note {
+  tick_t duration;
+  uint8_t freq_idx;
+};
+
 #define IE_MENU IE_BTN1_LONG
 
 #define IE_ENTER IE_BTN1_LONG
@@ -80,6 +85,56 @@ static volatile struct {
     uint8_t cur_custom_anim_word_idx;
   } menu;
 } g_state;
+
+
+static uint8_t alsa_freq_table[] = {
+  25,
+  50,
+  100,
+  125,
+  150,
+  175,
+  200,
+  225,
+  250,
+};
+
+static void alsa_off (void)
+{
+  TCCR2 &= ~_BV(COM20);
+  g_state.beep.playing = 0;
+}
+
+static void alsa_on (uint8_t freq_idx)
+{
+  TCCR2 |= _BV(COM20);
+  OCR2 = alsa_freq_table[freq_idx];
+  g_state.beep.playing = 1;
+}
+
+static void beep (struct note *song)
+{
+  g_state.beep.start = g_state.tick;
+  g_state.beep.end = g_state.tick + song->duration;
+
+  alsa_on(song->freq_idx);
+
+  g_state.beep.song = song + 1;
+}
+
+static void beep_menu (struct note *song)
+{
+  if (settings_get_sound_menu ()) {
+    beep (song);
+  }
+}
+/*
+static void beep_melody (struct note *song)
+{
+  if (settings_get_sound_melody ()) {
+    beep (song);
+  }
+}*/
 
 #define PAGE_RENDER(name) \
 static void page_##name##_render (void)
@@ -169,8 +224,12 @@ PAGE_INPUT_EVENT(custom)
   switch (ev) {
   PAGE_GOTO(IE_UP, sound);
   PAGE_GOTO(IE_DOWN, about);
-  PAGE_GOTO(IE_ENTER, custom_select);
   MENU_QUIT(IE_BACK);
+
+  case IE_ENTER:
+    g_state.menu.cur_page = &page_custom_select;
+    g_state.menu.cur_custom_anim_word_idx = 0;
+    break;
 
   default:
     break;
@@ -544,59 +603,6 @@ static void btn_state_change(volatile struct btn_state *state,
   }
 }
 
-struct note {
-  tick_t duration;
-  uint8_t freq_idx;
-};
-
-static uint8_t alsa_freq_table[] = {
-  25,
-  50,
-  100,
-  125,
-  150,
-  175,
-  200,
-  225,
-  250,
-};
-
-static void alsa_off (void)
-{
-  TCCR2 &= ~_BV(COM20);
-  g_state.beep.playing = 0;
-}
-
-static void alsa_on (uint8_t freq_idx)
-{
-  TCCR2 |= _BV(COM20);
-  OCR2 = alsa_freq_table[freq_idx];
-  g_state.beep.playing = 1;
-}
-
-static void beep (struct note *song)
-{
-  g_state.beep.start = g_state.tick;
-  g_state.beep.end = g_state.tick + song->duration;
-
-  alsa_on(song->freq_idx);
-
-  g_state.beep.song = song + 1;
-}
-
-static void beep_menu (struct note *song)
-{
-  if (settings_get_sound_menu ()) {
-    beep (song);
-  }
-}
-/*
-static void beep_melody (struct note *song)
-{
-  if (settings_get_sound_melody ()) {
-    beep (song);
-  }
-}*/
 
 static void beep_loop (void)
 {
