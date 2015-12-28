@@ -29,8 +29,7 @@ static struct {
   uint16_t slave_query_timer;
 
   // Info we get from master (and have to give to slave)
-  uint8_t word[MAX_CUBES];
-  enum anim_pattern pattenrs[MAX_CUBES];
+  struct anim_word anim_word;
   uint8_t my_rank;  // zero-based rank of the slave in the word (first slave
                     // is zero)
 
@@ -101,7 +100,7 @@ static void slave_query_impl (uint8_t *_buf)
 
   /* First, read in info from the master */
   g_state.my_rank = buf->m2s.rank;
-  memcpy (g_state.word, buf->m2s.word, MAX_CUBES);
+  memcpy (&g_state.anim_word, &buf->m2s.anim_word, sizeof (struct anim_word));
 
   /* Then, fill the buffer with our info. */
 
@@ -125,8 +124,7 @@ static void rising (void)
 
     // Fill message to slave.
     g_master_buf.m2s.rank = g_state.my_rank + 1;
-    memcpy (g_master_buf.m2s.word, g_state.word, MAX_CUBES);
-    memcpy (g_master_buf.m2s.patterns, g_state.pattenrs, MAX_CUBES);
+    memcpy (&g_master_buf.m2s.anim_word, &g_state.anim_word, sizeof (struct anim_word));
 
     // Send it!;
     j3p_master_query (&g_j3p_master_ctx);

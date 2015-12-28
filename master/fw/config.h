@@ -1,6 +1,8 @@
 #ifndef MASTER_FW_CONFIG_H_
 #define MASTER_FW_CONFIG_H_
 
+#include <common-config.h>
+
 #define MS_TO_TICKS(ms) ((MASTER_CLK_FREQ * (ms)) / 1000)
 
 typedef uint16_t tick_t;
@@ -8,6 +10,8 @@ typedef uint16_t tick_t;
 #define BTN_DEBOUNCE_TICKS MS_TO_TICKS(BTN_DEBOUNCE_MS)
 #define INPUT_LONG_PRESS_MS 1000UL
 #define INPUT_LONG_PRESS_TICKS MS_TO_TICKS(INPUT_LONG_PRESS_MS)
+
+#define NUM_CUSTOM_ANIM_WORDS 32
 
 // TODO put the right values
 #define MASTER_CLK_OUTPUT_DDR DDRD

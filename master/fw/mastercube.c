@@ -3,6 +3,7 @@
 #include <string.h>
 #include <util/atomic.h>
 #include <util/delay.h>
+#include "settings.h"
 #include "config.h"
 
 static struct j3p_master_ctx g_j3p_master_ctx;
@@ -22,10 +23,9 @@ struct btn_state {
 };
 
 
-static struct {
+static volatile struct {
   // The word we currently display
-  uint8_t word[MAX_CUBES];
-  enum anim_pattern patterns[MAX_CUBES];
+  struct anim_word anim_word;
 
   // Our idea of the present slaves.  The slave ids start at 1, so 0 means
   // "no slave present".
@@ -56,6 +56,10 @@ static struct {
     struct note *song;
     uint8_t playing;
   } beep;
+
+  struct {
+    uint8_t in_menu;
+  } render;
 } g_state;
 
 static uint8_t tick_expired(tick_t start, tick_t end)
@@ -76,7 +80,7 @@ static uint8_t tick_expired(tick_t start, tick_t end)
 void get_slave_sequence (uint8_t *slave_sequence)
 {
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
-    memcpy (slave_sequence, g_state.slave_sequence, MAX_CUBES);
+    memcpy (slave_sequence, (void *) g_state.slave_sequence, MAX_CUBES);
   }
 }
 
@@ -105,11 +109,10 @@ uint8_t get_slave_count (void)
  *             should be set to 0.
  * @param patterns Pointer to an array of MAX_CUBES animation patterns.  */
 
-void set_current_word (uint8_t *word, enum anim_pattern *patterns)
+void set_current_anim_word (struct anim_word *anim_word)
 {
   ATOMIC_BLOCK (ATOMIC_FORCEON) {
-    memcpy (g_state.word, word, sizeof (*word) * MAX_CUBES);
-    memcpy (g_state.patterns, patterns, sizeof (*patterns) * MAX_CUBES);
+    memcpy ((void *) &g_state.anim_word, anim_word, sizeof (struct anim_word));
   }
 }
 
@@ -134,7 +137,7 @@ static void status_led_blue (void)
   STATUS_LED_GREEN_PORT |= STATUS_LED_GREEN_MASK;
 }
 
-static void btn_state_change(struct btn_state *state,
+static void btn_state_change(volatile struct btn_state *state,
                              uint8_t read_value)
 {
   switch (state->value) {
@@ -195,6 +198,14 @@ struct note song1[] = {
   { MS_TO_TICKS(100), 6 },
   { MS_TO_TICKS(100), 7 },
   { MS_TO_TICKS(100), 8 },
+  { MS_TO_TICKS(150), 7 },
+  { MS_TO_TICKS(200), 6 },
+  { MS_TO_TICKS(250), 5 },
+  { MS_TO_TICKS(300), 4 },
+  { MS_TO_TICKS(350), 3 },
+  { MS_TO_TICKS(400), 2 },
+  { MS_TO_TICKS(450), 1 },
+  { MS_TO_TICKS(500), 0 },
   { 0, 0 },
 };
 
@@ -233,6 +244,20 @@ static void beep (struct note *song)
   g_state.beep.song = song + 1;
 }
 
+static void beep_menu (struct note *song)
+{
+  if (settings_get_sound_menu ()) {
+    beep (song);
+  }
+}
+/*
+static void beep_melody (struct note *song)
+{
+  if (settings_get_sound_melody ()) {
+    beep (song);
+  }
+}*/
+
 static void beep_loop (void)
 {
   if (g_state.beep.playing &&
@@ -254,24 +279,29 @@ static void input_event (enum input_event ev)
 {
   switch (ev) {
   case IE_BTN0_SHORT:
-    beep (song1);
+    beep_menu (song1);
     break;
+
   case IE_BTN0_LONG:
-    beep (song1);
+    beep_menu (song1);
     break;
+
   case IE_BTN1_SHORT:
-    beep (song1);
+    beep_menu (song1);
     break;
+
   case IE_BTN1_LONG:
-    beep (song1);
+    beep_menu (song1);
     break;
+
   case IE_BOTH:
-    beep (song1);
+    beep_menu (song1);
+    settings_set_sound_menu (!settings_get_sound_menu ());
     break;
   }
 }
 
-static void input_state_change (struct input_state *state,
+static void input_state_change (volatile struct input_state *state,
                                 enum btn_state_value btn0,
                                 enum btn_state_value btn1)
 {
@@ -374,8 +404,7 @@ static void rising (void)
 
     // Fill message to slave.
     g_master_buf.m2s.rank = 0;
-    memcpy (g_master_buf.m2s.word, g_state.word, MAX_CUBES);
-    memcpy (g_master_buf.m2s.patterns, g_state.patterns, MAX_CUBES);
+    memcpy (&g_master_buf.m2s.anim_word, (void *) &g_state.anim_word, sizeof (struct anim_word));
 
     // Send it!
     j3p_master_query (&g_j3p_master_ctx);
@@ -431,18 +460,12 @@ static void master_query_complete (uint8_t *_buf)
   g_state.slave_has_answered = 1;
   slave_is_alive();
 
-  memcpy (g_state.slave_sequence, buf->s2m.cubes, MAX_CUBES);
+  memcpy ((void *) g_state.slave_sequence, buf->s2m.cubes, MAX_CUBES);
 }
 
 static void init_state (void)
 {
-  memset (&g_state, 0, sizeof (g_state));
-  g_state.word[0] = 'j';
-  g_state.word[1] = 'e';
-  g_state.word[2] = 'r';
-  g_state.word[3] = 'o';
-  g_state.word[4] = 'm';
-  g_state.word[5] = 'e';
+  memset ((void *) &g_state, 0, sizeof (g_state));
 }
 
 static void init_comm (void)
@@ -518,11 +541,21 @@ static void input_loop (void) {
                       g_state.btn1.value);
 }
 
+static void render_loop (void)
+{
+  if (g_state.render.in_menu) {
+
+  } else {
+
+  }
+}
+
 static void loop ()
 {
   for (;;) {
     input_loop ();
     beep_loop ();
+    render_loop ();
   }
 }
 
@@ -534,13 +567,7 @@ int main (void)
   init_state_led ();
   init_inputs ();
   init_alsa ();
-
-  while (0) {
-    PORTD |= _BV(PD7);
-    _delay_ms(10);
-    PORTD &= ~_BV(PD7);
-    _delay_ms(10);
-  }
+  init_settings ();
 
   status_led_red();
   _delay_ms(200);

@@ -14,8 +14,11 @@ enum anim_pattern {
 
 struct m2s_data {
   uint8_t rank;
-  uint8_t word[MAX_CUBES];
-  enum anim_pattern patterns[MAX_CUBES];
+
+  struct anim_word {
+    uint8_t text[MAX_CUBES];
+    enum anim_pattern patterns[MAX_CUBES];
+  } anim_word;
 };
 
 struct s2m_data {
