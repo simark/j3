@@ -2,7 +2,7 @@
 C_SRC = $(wildcard *.c) $(wildcard ../../common/*.c)
 
 # target MCU
-MCU = atmega32
+MCU = atmega32a
 PROGRAM_MCU = m32
 F_CPU = 10000000UL
 
