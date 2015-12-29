@@ -15,6 +15,24 @@
 
 #define max(a,b) (a > b ? a : b)
 
+/* rows on and off */
+#define ROW0_ON()     do {ROW0_PORT &= ~ROW0_MASK;} while (0)
+#define ROW0_OFF()    do {ROW0_PORT |= ROW0_MASK;} while (0)
+#define ROW1_ON()     do {ROW1_PORT &= ~ROW1_MASK;} while (0)
+#define ROW1_OFF()    do {ROW1_PORT |= ROW1_MASK;} while (0)
+#define ROW2_ON()     do {ROW2_PORT &= ~ROW2_MASK;} while (0)
+#define ROW2_OFF()    do {ROW2_PORT |= ROW2_MASK;} while (0)
+#define ROW3_ON()     do {ROW3_PORT &= ~ROW3_MASK;} while (0)
+#define ROW3_OFF()    do {ROW3_PORT |= ROW3_MASK;} while (0)
+#define ROW4_ON()     do {ROW4_PORT &= ~ROW4_MASK;} while (0)
+#define ROW4_OFF()    do {ROW4_PORT |= ROW4_MASK;} while (0)
+
+/* shift register signals on and off */
+#define SR_SXCP_ON()  do {SR_SXCP_PORT |= SR_SXCP_MASK;} while (0)
+#define SR_SXCP_OFF() do {SR_SXCP_PORT &= ~SR_SXCP_MASK;} while (0)
+#define SR_DS_ON()    do {SR_DS_PORT |= SR_DS_MASK;} while (0)
+#define SR_DS_OFF()   do {SR_DS_PORT &= ~SR_DS_MASK;} while (0)
+
 static volatile struct {
   // Comm with downstream
   uint8_t slave_has_answered;
@@ -199,6 +217,22 @@ static void init_state (uint8_t my_id)
   g_state.my_id = my_id;
 }
 
+static void init_display (void)
+{
+  /* rows */
+  ROW0_DDR |= ROW0_MASK;
+  ROW1_DDR |= ROW1_MASK;
+  ROW2_DDR |= ROW2_MASK;
+  ROW3_DDR |= ROW3_MASK;
+  ROW4_DDR |= ROW4_MASK;
+
+  /* shift register */
+  SR_SXCP_OFF ();
+  SR_DS_OFF ();
+  SR_SXCP_DDR |= SR_SXCP_MASK;
+  SR_DS_DDR |= SR_DS_MASK;
+}
+
 static void loop (void)
 {
   for (;;);
@@ -216,7 +250,7 @@ int main (void)
   init_state (my_id);
   init_master_clock_listen ();
   init_j3p ();
-
+  init_display ();
 
   sei();
 
