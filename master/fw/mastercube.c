@@ -12,6 +12,7 @@
 #include "input.h"
 #include "menu.h"
 
+
 static volatile struct {
   // The word we currently display
   struct anim_word anim_word;
@@ -342,9 +343,18 @@ static void status_led_loop (void)
   }
 }
 
+tick_t s = 0, e = 1;
+uint8_t cur_char = 0;
 static void loop ()
 {
   for (;;) {
+    if (tick_expired(s, e)) {
+      cur_char = (cur_char + 2) % 150;
+
+      g_volatile_state.anim_word.text[0] = cur_char;
+
+      s = get_tick(); e = s + MS_TO_TICKS(500);
+    }
     btn_loop (&g_state.btn0);
     btn_loop (&g_state.btn1);
     input_loop (&g_state.input);

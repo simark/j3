@@ -375,20 +375,14 @@ tick_t s = 0, e = 1;
 uint8_t cur_char = 0;
 static void display_loop (void)
 {
-  if (tick_expired(s, e)) {
-	  cur_char = (cur_char + 1) % font_count();
-
-	  font_char_to_frame(cur_char, &g_state.display.cur_frame);
-
-	  s = get_tick(); e = s + MS_TO_TICKS(2000);
-  }
-
   if (tick_expired (g_state.display.row_tick_start,
                     g_state.display.row_tick_end)) {
     /* reset row timer */
     g_state.display.row_tick_start = get_tick ();
     g_state.display.row_tick_end =
       g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
+
+    font_char_to_frame(g_volatile_state.anim_word.text[0], &g_state.display.cur_frame);
 
     /* next row */
     display_next_row ();
