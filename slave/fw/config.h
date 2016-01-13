@@ -21,8 +21,8 @@
 #define COMM_SLAVE_MASK _BV(PA1)
 
 // Number of rows and columns
-#define LED_ROWS	    5
-#define LED_COLS	    5
+#define DISPLAY_ROWS  5
+#define DISPLAY_COLS  5
 
 // Rows pins
 #define ROW0_DDR      DDRA

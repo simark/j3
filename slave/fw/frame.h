@@ -2,15 +2,17 @@
 
 #include "config.h"
 
-typedef const uint8_t *frame_t;
+#define FRAME_RED_MASK              _BV(2)
+#define FRAME_GREEN_MASK            _BV(1)
+#define FRAME_BLUE_MASK             _BV(0)
+#define FRAME_PIXEL_GET_RED(_px)    ((_px) & FRAME_RED_MASK) ? 1 : 0)
+#define FRAME_PIXEL_GET_GREEN(_px)  ((_px) & FRAME_GREEN_MASK) ? 1 : 0)
+#define FRAME_PIXEL_GET_BLUE(_px)   ((_px) & FRAME_BLUE_MASK) ? 1 : 0)
 
-const uint8_t *frame_get_row (frame_t frame, uint8_t row_index)
-{
-  return frame[row_index * LED_COLS];
-}
+struct frame_row {
+  uint8_t cols[DISPLAY_COLS];
+};
 
-const uint8_t frame_get_pixel (frame_t frame, uint8_t row_index,
-                               uint8_t col_index)
-{
-  return frame_get_row (row_index)[col_index]
-}
+struct frame {
+  struct frame_row rows[DISPLAY_ROWS];
+};

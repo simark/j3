@@ -1,8 +1,9 @@
 #include <stdint.h>
+#include <avr/pgmspace.h>
 
 #include "config.h"
 
-static uint8_t font[] = {
+static const uint8_t font[] PROGMEM = {
   0x0, 0x0, 0x0, 0x0, 0x0,
   0xe, 0x11, 0x1f, 0x11, 0x11,
   0x1e, 0x11, 0x1e, 0x11, 0x1e,
@@ -198,5 +199,10 @@ static uint8_t font[] = {
 
 const uint8_t *font_get_char (uint8_t index)
 {
-  return &font[LED_ROWS * index];
+  return &font[DISPLAY_ROWS * index];
+}
+
+uint8_t font_get_char_pixel (const uint8_t *font_char, uint8_t row, uint8_t col)
+{
+  return (font_char[row] >> (DISPLAY_COLS - col - 1)) & 1;
 }

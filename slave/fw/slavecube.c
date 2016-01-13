@@ -10,28 +10,20 @@
 #include <tick.h>
 
 #include "config.h"
+#include "frame.h"
 
 #include <j3p.h>
 
 #define max(a,b) (a > b ? a : b)
 
-/* rows on and off */
-#define ROW0_ON()     do {ROW0_PORT &= ~ROW0_MASK;} while (0)
-#define ROW0_OFF()    do {ROW0_PORT |= ROW0_MASK;} while (0)
-#define ROW1_ON()     do {ROW1_PORT &= ~ROW1_MASK;} while (0)
-#define ROW1_OFF()    do {ROW1_PORT |= ROW1_MASK;} while (0)
-#define ROW2_ON()     do {ROW2_PORT &= ~ROW2_MASK;} while (0)
-#define ROW2_OFF()    do {ROW2_PORT |= ROW2_MASK;} while (0)
-#define ROW3_ON()     do {ROW3_PORT &= ~ROW3_MASK;} while (0)
-#define ROW3_OFF()    do {ROW3_PORT |= ROW3_MASK;} while (0)
-#define ROW4_ON()     do {ROW4_PORT &= ~ROW4_MASK;} while (0)
-#define ROW4_OFF()    do {ROW4_PORT |= ROW4_MASK;} while (0)
-
 /* shift register signals on and off */
-#define SR_SXCP_ON()  do {SR_SXCP_PORT |= SR_SXCP_MASK;} while (0)
-#define SR_SXCP_OFF() do {SR_SXCP_PORT &= ~SR_SXCP_MASK;} while (0)
-#define SR_DS_ON()    do {SR_DS_PORT |= SR_DS_MASK;} while (0)
-#define SR_DS_OFF()   do {SR_DS_PORT &= ~SR_DS_MASK;} while (0)
+#define SR_SXCP_ON()  do { SR_SXCP_PORT |= SR_SXCP_MASK; } while (0)
+#define SR_SXCP_OFF() do { SR_SXCP_PORT &= ~SR_SXCP_MASK; } while (0)
+#define SR_DS_ON()    do { SR_DS_PORT |= SR_DS_MASK; } while (0)
+#define SR_DS_OFF()   do { SR_DS_PORT &= ~SR_DS_MASK; } while (0)
+
+/* display */
+#define DISPLAY_TICKS_PER_ROW MS_TO_TICKS(2)
 
 static volatile struct {
   // Comm with downstream
@@ -55,6 +47,13 @@ static volatile struct {
 static struct {
   // The built-in id, read from EEPRROM
   uint8_t my_id;
+
+  /* display stuff */
+  struct {
+    uint8_t cur_row;
+    uint8_t row_tick_start, row_tick_end;
+    struct frame cur_frame;
+  } display;
 } g_state;
 
 static void j3p_master_line_up (void)
@@ -217,34 +216,214 @@ static void init_state (uint8_t my_id)
   g_state.my_id = my_id;
 }
 
+static void sr_sxcp_tick (void)
+{
+  SR_SXCP_ON();
+  SR_SXCP_OFF();
+}
+
+static void sr_push_one_bit (uint8_t bit)
+{
+  if (bit & 1) {
+    /* off because the pin is sinking the current for the LED to be on */
+    SR_DS_OFF();
+  } else {
+    SR_DS_ON();
+  }
+
+  sr_sxcp_tick ();
+}
+
+static void sr_push_16_bits (uint16_t word)
+{
+  uint8_t i;
+
+  for (i = 0; i < 16; ++i) {
+    sr_push_one_bit (word & 1);
+    word >>= 1;
+  }
+
+  /* one more SHCP/STCP since both are wired together */
+  sr_sxcp_tick ();
+}
+
+static uint16_t display_row_to_sr_word (uint8_t row_index)
+{
+  uint16_t srword = 0;
+  const struct frame_row *row = &g_state.display.cur_frame.rows[row_index];
+
+  if (row->cols[0] & FRAME_RED_MASK) {
+    srword |= _BV(1);
+  }
+
+  if (row->cols[0] & FRAME_GREEN_MASK) {
+    srword |= _BV(0);
+  }
+
+  if (row->cols[0] & FRAME_BLUE_MASK) {
+    srword |= _BV(2);
+  }
+
+  if (row->cols[1] & FRAME_RED_MASK) {
+    srword |= _BV(3);
+  }
+
+  if (row->cols[1] & FRAME_GREEN_MASK) {
+    srword |= _BV(4);
+  }
+
+  if (row->cols[1] & FRAME_BLUE_MASK) {
+    srword |= _BV(5);
+  }
+
+  if (row->cols[2] & FRAME_RED_MASK) {
+    srword |= _BV(8);
+  }
+
+  if (row->cols[2] & FRAME_GREEN_MASK) {
+    srword |= _BV(7);
+  }
+
+  if (row->cols[2] & FRAME_BLUE_MASK) {
+    srword |= _BV(6);
+  }
+
+  if (row->cols[3] & FRAME_RED_MASK) {
+    srword |= _BV(10);
+  }
+
+  if (row->cols[3] & FRAME_GREEN_MASK) {
+    srword |= _BV(12);
+  }
+
+  if (row->cols[3] & FRAME_BLUE_MASK) {
+    srword |= _BV(9);
+  }
+
+  if (row->cols[4] & FRAME_RED_MASK) {
+    srword |= _BV(14);
+  }
+
+  if (row->cols[4] & FRAME_GREEN_MASK) {
+    srword |= _BV(11);
+  }
+
+  if (row->cols[4] & FRAME_BLUE_MASK) {
+    srword |= _BV(13);
+  }
+
+  return srword;
+}
+
+static void display_write_row (uint8_t row_index)
+{
+  uint16_t sr_word = display_row_to_sr_word (row_index);
+
+  sr_push_16_bits (sr_word);
+}
+
+struct display_row_io {
+  volatile uint8_t *port;
+  uint8_t mask;
+};
+
+static struct display_row_io display_row_ios[] = {
+  { &ROW0_PORT, ROW0_MASK },
+  { &ROW1_PORT, ROW1_MASK },
+  { &ROW2_PORT, ROW2_MASK },
+  { &ROW3_PORT, ROW3_MASK },
+  { &ROW4_PORT, ROW4_MASK },
+};
+
+static void display_row_off (uint8_t row_index)
+{
+  *(display_row_ios[row_index].port) |= display_row_ios[row_index].mask;
+}
+
+static void display_row_on (uint8_t row_index)
+{
+  /* off because we're controlling the base of a PNP here */
+  *(display_row_ios[row_index].port) &= ~display_row_ios[row_index].mask;
+}
+
+static void display_next_row (void)
+{
+  uint8_t prev_row = g_state.display.cur_row;
+
+  /* find next row index */
+  g_state.display.cur_row++;
+
+  if (g_state.display.cur_row == DISPLAY_ROWS) {
+    g_state.display.cur_row = 0;
+  }
+
+  /* turn previous row off */
+  display_row_off (prev_row);
+
+  /* set columns as fast as possible */
+  display_write_row (g_state.display.cur_row);
+
+  /* turn next row on */
+  display_row_on (g_state.display.cur_row);
+}
+
+static void display_loop (void)
+{
+  if (tick_expired (g_state.display.row_tick_start,
+                    g_state.display.row_tick_end)) {
+    /* next row */
+    display_next_row ();
+
+    /* reset row timer */
+    g_state.display.row_tick_start = get_tick ();
+    g_state.display.row_tick_end =
+      g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
+  }
+}
+
 static void init_display (void)
 {
-  /* rows */
+  /* rows (all off) */
   ROW0_DDR |= ROW0_MASK;
   ROW1_DDR |= ROW1_MASK;
   ROW2_DDR |= ROW2_MASK;
   ROW3_DDR |= ROW3_MASK;
   ROW4_DDR |= ROW4_MASK;
+  display_row_off(0);
+  display_row_off(1);
+  display_row_off(2);
+  display_row_off(3);
+  display_row_off(4);
 
   /* shift register */
   SR_SXCP_OFF ();
   SR_DS_OFF ();
   SR_SXCP_DDR |= SR_SXCP_MASK;
   SR_DS_DDR |= SR_DS_MASK;
+
+  /* initialize row timer */
+  g_state.display.row_tick_start = get_tick ();
+  g_state.display.row_tick_end =
+    g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
+
+  g_state.display.cur_frame.rows[0].cols[0] = FRAME_RED_MASK;
+  g_state.display.cur_frame.rows[0].cols[4] = FRAME_BLUE_MASK;
+  g_state.display.cur_frame.rows[4].cols[4] = FRAME_GREEN_MASK;
+  g_state.display.cur_frame.rows[4].cols[0] = FRAME_RED_MASK | FRAME_GREEN_MASK;
+  g_state.display.cur_frame.rows[2].cols[2] = 7;
 }
 
 static void loop (void)
 {
-  for (;;);
+  display_row_on(0);
+  display_write_row(0);
+  for (;;) {
+    //display_loop ();
+  }
 }
 
 int main (void)
 {
-  /* Debug pin */
-  DDRB |= _BV(PB0);
-  DDRB |= _BV(PB1);
-  DDRA |= _BV(PA2) | _BV(PA3);
-
   uint8_t my_id = eeprom_read_byte (0);
 
   init_state (my_id);
