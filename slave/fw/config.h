@@ -35,11 +35,11 @@
 #define ROW2_PORT     PORTA
 #define ROW3_PORT     PORTA
 #define ROW4_PORT     PORTA
-#define ROW0_MASK     _BV(PA1)
-#define ROW1_MASK     _BV(PA2)
+#define ROW0_MASK     _BV(PA5)
+#define ROW1_MASK     _BV(PA4)
 #define ROW2_MASK     _BV(PA3)
-#define ROW3_MASK     _BV(PA4)
-#define ROW4_MASK     _BV(PA5)
+#define ROW3_MASK     _BV(PA2)
+#define ROW4_MASK     _BV(PA1)
 
 // Shift register pins
 #define SR_SXCP_DDR   DDRB

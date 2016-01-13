@@ -361,7 +361,6 @@ static void display_next_row (void)
     g_state.display.cur_row = 0;
   }
 
-  ATOMIC_BLOCK (ATOMIC_FORCEON) {
     /* turn previous row off */
     display_row_off (prev_row);
 
@@ -370,11 +369,20 @@ static void display_next_row (void)
 
     /* turn next row on */
     display_row_on (g_state.display.cur_row);
-  }
 }
 
+tick_t s = 0, e = 1;
+uint8_t cur_char = 0;
 static void display_loop (void)
 {
+  if (tick_expired(s, e)) {
+	  cur_char = (cur_char + 1) % font_count();
+
+	  font_char_to_frame(cur_char, &g_state.display.cur_frame);
+
+	  s = get_tick(); e = s + MS_TO_TICKS(2000);
+  }
+
   if (tick_expired (g_state.display.row_tick_start,
                     g_state.display.row_tick_end)) {
     /* reset row timer */

@@ -215,9 +215,12 @@ void font_char_to_frame (uint8_t index, struct frame *frame)
 
   for (i = 0; i < DISPLAY_ROWS; i++) {
     for (j = 0; j < DISPLAY_COLS; j++) {
-      if (font_get_char_pixel(c, i, j)) {
-        frame->rows[i].cols[j] = 1;
-      }
+      frame->rows[i].cols[j] = font_get_char_pixel(c, i, j);
     }
   }
+}
+
+uint8_t font_count (void)
+{
+  return sizeof (font) / DISPLAY_ROWS;
 }
