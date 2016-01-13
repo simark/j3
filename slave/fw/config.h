@@ -12,13 +12,13 @@
 #define COMM_MASTER_DDR DDRA
 #define COMM_MASTER_PIN PINA
 #define COMM_MASTER_PORT PORTA
-#define COMM_MASTER_MASK _BV(PA0)
+#define COMM_MASTER_MASK _BV(PA6)
 
 // The pin we use to communicate to a master, as a slave.
 #define COMM_SLAVE_DDR DDRA
 #define COMM_SLAVE_PIN PINA
 #define COMM_SLAVE_PORT PORTA
-#define COMM_SLAVE_MASK _BV(PA1)
+#define COMM_SLAVE_MASK _BV(PA7)
 
 // Number of rows and columns
 #define DISPLAY_ROWS  5
