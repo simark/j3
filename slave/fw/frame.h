@@ -1,3 +1,6 @@
+#ifndef FRAME_H
+#define FRAME_H
+
 #include <stdint.h>
 
 #include "config.h"
@@ -16,3 +19,5 @@ struct frame_row {
 struct frame {
   struct frame_row rows[DISPLAY_ROWS];
 };
+
+#endif

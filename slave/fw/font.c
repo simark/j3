@@ -2,6 +2,7 @@
 #include <avr/pgmspace.h>
 
 #include "config.h"
+#include "font.h"
 
 static const uint8_t font[] PROGMEM = {
   0x0, 0x0, 0x0, 0x0, 0x0,
@@ -204,5 +205,19 @@ const uint8_t *font_get_char (uint8_t index)
 
 uint8_t font_get_char_pixel (const uint8_t *font_char, uint8_t row, uint8_t col)
 {
-  return (font_char[row] >> (DISPLAY_COLS - col - 1)) & 1;
+  return (pgm_read_byte (font_char + row) >> (DISPLAY_COLS - col - 1)) & 1;
+}
+
+void font_char_to_frame (uint8_t index, struct frame *frame)
+{
+  const uint8_t *c = font_get_char (index);
+  uint8_t i, j;
+
+  for (i = 0; i < DISPLAY_ROWS; i++) {
+    for (j = 0; j < DISPLAY_COLS; j++) {
+      if (font_get_char_pixel(c, i, j)) {
+        frame->rows[i].cols[j] = 1;
+      }
+    }
+  }
 }

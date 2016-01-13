@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "frame.h"
+#include "font.h"
 
 #include <j3p.h>
 
@@ -406,19 +407,13 @@ static void init_display (void)
   g_state.display.row_tick_end =
     g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
 
-  g_state.display.cur_frame.rows[0].cols[0] = FRAME_RED_MASK;
-  g_state.display.cur_frame.rows[0].cols[4] = FRAME_BLUE_MASK;
-  g_state.display.cur_frame.rows[4].cols[4] = FRAME_GREEN_MASK;
-  g_state.display.cur_frame.rows[4].cols[0] = FRAME_RED_MASK | FRAME_GREEN_MASK;
-  g_state.display.cur_frame.rows[2].cols[2] = 7;
+  font_char_to_frame(1, &g_state.display.cur_frame);
 }
 
 static void loop (void)
 {
-  display_row_on(0);
-  display_write_row(0);
   for (;;) {
-    //display_loop ();
+    display_loop ();
   }
 }
 
