@@ -22,9 +22,8 @@ static volatile struct {
 
   // Incremented once per clock cycle.  Once this reaches SLAVE_QUERY_TIMER_MAX,
   // we initiate a slave query.
-  uint16_t slave_query_timer;
   uint8_t slave_has_answered;
-
+  tick_t slave_query_start, slave_query_end;
 
   // Communication with the slaves
   struct j3p_master_ctx j3p_master_ctx;
@@ -137,11 +136,12 @@ static void isr_slave_timeout (void)
 
 static void isr_rising (void)
 {
+  tick ();
+
   j3p_master_on_rising (&g_volatile_state.j3p_master_ctx);
 
-  g_volatile_state.slave_query_timer++;
-
-  if (g_volatile_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
+  if (tick_expired (g_volatile_state.slave_query_start,
+                    g_volatile_state.slave_query_end)) {
     /* If we are about to send another query and the slave hasn't
      * answered the previous one, assume he is not there. */
     if (!g_volatile_state.slave_has_answered) {
@@ -157,10 +157,12 @@ static void isr_rising (void)
     // Send it!
     j3p_master_query (&g_volatile_state.j3p_master_ctx);
     g_volatile_state.slave_has_answered = 0;
-    g_volatile_state.slave_query_timer = 0;
+
+    g_volatile_state.slave_query_start = get_tick ();
+    g_volatile_state.slave_query_end =
+      g_volatile_state.slave_query_start + MS_TO_TICKS(SLAVE_POLL_MS);
   }
 
-  tick ();
 }
 
 static void isr_falling (void)
@@ -198,7 +200,6 @@ static void isr_master_line_down (void)
 static uint8_t isr_master_read_line (void)
 {
   return (COMM_MASTER_PIN & COMM_MASTER_MASK) != 0;
-  return 0;
 }
 
 static void isr_master_query_complete (void)
@@ -224,6 +225,10 @@ static void init_comm (void)
                    sizeof(struct s2m_data),
                    (volatile uint8_t *) &g_volatile_state.master_buf,
                    isr_master_query_complete);
+
+  g_volatile_state.slave_query_start = get_tick ();
+  g_volatile_state.slave_query_end =
+    g_volatile_state.slave_query_start + MS_TO_TICKS(SLAVE_POLL_MS);
 }
 
 static void init_clk (void)

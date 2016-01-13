@@ -5,6 +5,7 @@
 #include <avr/eeprom.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util/atomic.h>
 
 #include <common-config.h>
 #include <tick.h>
@@ -29,7 +30,7 @@
 static volatile struct {
   // Comm with downstream
   uint8_t slave_has_answered;
-  uint16_t slave_query_timer;
+  tick_t slave_query_start, slave_query_end;
 
   // Info we get from master (and have to give to slave)
   struct anim_word anim_word;
@@ -52,7 +53,7 @@ static struct {
   /* display stuff */
   struct {
     uint8_t cur_row;
-    uint8_t row_tick_start, row_tick_end;
+    tick_t row_tick_start, row_tick_end;
     struct frame cur_frame;
   } display;
 } g_state;
@@ -131,12 +132,13 @@ static void slave_query_impl ()
 
 static void isr_rising (void)
 {
+  tick ();
+
   j3p_master_on_rising (&g_volatile_state.j3p_master_ctx);
   j3p_slave_on_rising (&g_volatile_state.j3p_slave_ctx);
 
-  g_volatile_state.slave_query_timer++;
-
-  if (g_volatile_state.slave_query_timer >= SLAVE_QUERY_TIMER_MAX) {
+  if (tick_expired (g_volatile_state.slave_query_start,
+                      g_volatile_state.slave_query_end)) {
     /* If we are about to send another query and the slave hasn't
      * answered the previous one, assume he is not there. */
     if (!g_volatile_state.slave_has_answered) {
@@ -152,10 +154,11 @@ static void isr_rising (void)
     // Send it!;
     j3p_master_query (&g_volatile_state.j3p_master_ctx);
     g_volatile_state.slave_has_answered = 0;
-    g_volatile_state.slave_query_timer = 0;
-  }
 
-  tick ();
+    g_volatile_state.slave_query_start = get_tick ();
+    g_volatile_state.slave_query_end =
+      g_volatile_state.slave_query_start + MS_TO_TICKS(SLAVE_POLL_MS);
+  }
 }
 
 static void isr_falling (void)
@@ -192,6 +195,10 @@ static void init_j3p (void)
                   sizeof (struct s2m_data),
                   (volatile uint8_t *) &g_volatile_state.slave_buf,
                   slave_query_impl);
+
+  g_volatile_state.slave_query_start = get_tick ();
+  g_volatile_state.slave_query_end =
+    g_volatile_state.slave_query_start + MS_TO_TICKS(SLAVE_POLL_MS);
 }
 
 
@@ -354,27 +361,29 @@ static void display_next_row (void)
     g_state.display.cur_row = 0;
   }
 
-  /* turn previous row off */
-  display_row_off (prev_row);
+  ATOMIC_BLOCK (ATOMIC_FORCEON) {
+    /* turn previous row off */
+    display_row_off (prev_row);
 
-  /* set columns as fast as possible */
-  display_write_row (g_state.display.cur_row);
+    /* set columns as fast as possible */
+    display_write_row (g_state.display.cur_row);
 
-  /* turn next row on */
-  display_row_on (g_state.display.cur_row);
+    /* turn next row on */
+    display_row_on (g_state.display.cur_row);
+  }
 }
 
 static void display_loop (void)
 {
   if (tick_expired (g_state.display.row_tick_start,
                     g_state.display.row_tick_end)) {
-    /* next row */
-    display_next_row ();
-
     /* reset row timer */
     g_state.display.row_tick_start = get_tick ();
     g_state.display.row_tick_end =
       g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
+
+    /* next row */
+    display_next_row ();
   }
 }
 

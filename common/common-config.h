@@ -5,8 +5,7 @@
 #define MASTER_CLK_FREQ 10000UL // hz
 
 /* Frequency at which we want to query our neighbour */
-#define SLAVE_POLL_FREQ 20 // hz
-#define SLAVE_QUERY_TIMER_MAX (MASTER_CLK_FREQ / SLAVE_POLL_FREQ)
+#define SLAVE_POLL_MS 50
 
 enum anim_pattern {
   ANIM_PATTERN_TODO,
