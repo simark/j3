@@ -167,15 +167,11 @@ static void isr_falling (void)
 
 ISR(EXT_INT0_vect)
 {
-  PORTB |= _BV(PB1);
-
   if (MASTER_CLK_PIN & MASTER_CLK_MASK) {
     isr_rising ();
   } else {
     isr_falling ();
   }
-
-  PORTB &= ~_BV(PB1);
 }
 
 static void init_j3p (void)
