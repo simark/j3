@@ -366,6 +366,8 @@ int main (void)
   init_settings ();
   init_menu (&menu_instance, &g_state.beep);
 
+  DDRB &= ~(_BV(PB5) |_BV(PB6) |_BV(PB7));
+
   play_intro ();
 
   sei();
