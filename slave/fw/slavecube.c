@@ -25,7 +25,7 @@
 #define SR_DS_OFF()   do { SR_DS_PORT &= ~SR_DS_MASK; } while (0)
 
 /* display */
-#define DISPLAY_TICKS_PER_ROW MS_TO_TICKS(2)
+#define DISPLAY_TICKS_PER_ROW MS_TO_TICKS(3)
 
 static volatile struct {
   // Comm with downstream
