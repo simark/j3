@@ -230,6 +230,8 @@ static void init_comm (void)
   g_volatile_state.slave_query_start = get_tick ();
   g_volatile_state.slave_query_end =
     g_volatile_state.slave_query_start + MS_TO_TICKS(SLAVE_POLL_MS);
+
+  isr_master_line_up ();
 }
 
 static void init_clk (void)
@@ -349,11 +351,15 @@ static void loop ()
 {
   for (;;) {
     if (tick_expired(s, e)) {
-      cur_char = (cur_char + 2) % 150;
-
+      cur_char = 1;
       g_volatile_state.anim_word.text[0] = cur_char;
+      g_volatile_state.anim_word.text[1] = cur_char + 1;
+      g_volatile_state.anim_word.text[2] = cur_char + 2;
+      g_volatile_state.anim_word.text[3] = cur_char + 3;
+      g_volatile_state.anim_word.text[4] = cur_char + 4;
+      g_volatile_state.anim_word.text[5] = cur_char + 5;
 
-      s = get_tick(); e = s + MS_TO_TICKS(500);
+      s = get_tick(); e = s + MS_TO_TICKS(2000);
     }
     btn_loop (&g_state.btn0);
     btn_loop (&g_state.btn1);

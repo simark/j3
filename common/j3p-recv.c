@@ -66,8 +66,6 @@ static void j3p_recv_on_falling_stop_bit (volatile struct j3p_recv_fsm *fsm)
 {
   uint8_t line_value = fsm->read_line ();
 
-
-
   if (line_value) {
     if (fsm->bytes_left == 0) {
       j3p_recv_state_done (fsm);

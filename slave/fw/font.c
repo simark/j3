@@ -224,3 +224,7 @@ uint8_t font_count (void)
 {
   return sizeof (font) / DISPLAY_ROWS;
 }
+
+uint8_t font_is_valid_char (uint8_t c) {
+  return c < font_count ();
+}

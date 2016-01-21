@@ -126,7 +126,6 @@ void j3p_slave_init (volatile struct j3p_slave_ctx *ctx,
   ctx->bytes_out = bytes_out;
   ctx->buf = send_recv_buf;
   ctx->query = query;
-  ctx->break_len = 0;
 
   j3p_slave_state_idle (ctx);
 }

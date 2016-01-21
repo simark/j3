@@ -97,7 +97,7 @@ static void master_query_complete ()
 
   /* Copy downstream cube ids from slave message */
   memcpy ((void *) &g_volatile_state.slave_seq,
-          (void *) &g_volatile_state.master_buf.s2m.slave_seq,
+          (const void *) &g_volatile_state.master_buf.s2m.slave_seq,
           sizeof (g_volatile_state.slave_seq));
 }
 
@@ -116,16 +116,28 @@ static void slave_timeout (void)
  */
 static void slave_query_impl ()
 {
+  uint8_t my_rank, i, c;
+
   /* First, read in info from the master */
-  g_volatile_state.my_rank = g_volatile_state.slave_buf.m2s.rank;
-  memcpy ((void *) &g_volatile_state.anim_word,
-          (void *) &g_volatile_state.slave_buf.m2s.anim_word,
-          sizeof (g_volatile_state.anim_word));
+  my_rank = g_volatile_state.slave_buf.m2s.rank;
+  if (my_rank <= MAX_CUBES) {
+    g_volatile_state.my_rank = my_rank;
+  }
+
+  for (i = 0; i < MAX_CUBES; i++) {
+    c = g_volatile_state.slave_buf.m2s.anim_word.text[i];
+
+    if (font_is_valid_char (c)) {
+      g_volatile_state.anim_word.text[i] = c;
+    } else {
+      g_volatile_state.anim_word.text[i] = 0;
+    }
+  }
 
   /* Then, fill the buffer with our info. */
   g_volatile_state.slave_buf.s2m.slave_seq.ids[0] = g_state.my_id;
   memcpy((void *) g_volatile_state.slave_buf.s2m.slave_seq.ids + 1,
-         (void *) g_volatile_state.slave_seq.ids,
+         (const void *) g_volatile_state.slave_seq.ids,
          sizeof (g_volatile_state.slave_buf.s2m.slave_seq.ids) -
            sizeof(g_volatile_state.slave_buf.s2m.slave_seq.ids[0]));
 }
@@ -139,8 +151,8 @@ static void isr_rising (void)
 
   if (tick_expired (g_volatile_state.slave_query_start,
                       g_volatile_state.slave_query_end)) {
-    /* If we are about to send another query and the slave hasn't
-     * answered the previous one, assume he is not there. */
+    // If we are about to send another query and the slave hasn't
+    // answered the previous one, assume he is not there.
     if (!g_volatile_state.slave_has_answered) {
       slave_timeout ();
     }
@@ -148,7 +160,7 @@ static void isr_rising (void)
     // Fill message to slave.
     g_volatile_state.master_buf.m2s.rank = g_volatile_state.my_rank + 1;
     memcpy ((void *) &g_volatile_state.master_buf.m2s.anim_word,
-            (void *) &g_volatile_state.anim_word,
+            (const void *) &g_volatile_state.anim_word,
             sizeof (g_volatile_state.master_buf.m2s.anim_word));
 
     // Send it!;
@@ -161,9 +173,8 @@ static void isr_rising (void)
   }
 }
 
-static void isr_falling (void)
+void isr_falling (void)
 {
-
   j3p_master_on_falling (&g_volatile_state.j3p_master_ctx);
   j3p_slave_on_falling (&g_volatile_state.j3p_slave_ctx);
 }
@@ -187,6 +198,7 @@ static void init_j3p (void)
                    sizeof (struct s2m_data),
                    (volatile uint8_t *) &g_volatile_state.master_buf,
                    master_query_complete);
+
   j3p_slave_init (&g_volatile_state.j3p_slave_ctx,
                   j3p_slave_line_up,
                   j3p_slave_line_down,
@@ -202,7 +214,7 @@ static void init_j3p (void)
 }
 
 
-static void init_master_clock_listen (void)
+void init_master_clock_listen (void)
 {
   MASTER_CLK_DDR &= ~MASTER_CLK_MASK;
 
@@ -216,6 +228,7 @@ static void init_master_clock_listen (void)
 static void init_state (uint8_t my_id)
 {
   memset (&g_state, 0, sizeof (g_state));
+  memset ((void *) &g_volatile_state, 0, sizeof (g_volatile_state));
 
   g_state.my_id = my_id;
 }
@@ -371,8 +384,6 @@ static void display_next_row (void)
     display_row_on (g_state.display.cur_row);
 }
 
-tick_t s = 0, e = 1;
-uint8_t cur_char = 0;
 static void display_loop (void)
 {
   if (tick_expired (g_state.display.row_tick_start,
@@ -382,7 +393,7 @@ static void display_loop (void)
     g_state.display.row_tick_end =
       g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
 
-    font_char_to_frame(g_volatile_state.anim_word.text[0], &g_state.display.cur_frame);
+    font_char_to_frame(g_volatile_state.anim_word.text[g_volatile_state.my_rank], &g_state.display.cur_frame);
 
     /* next row */
     display_next_row ();
@@ -414,7 +425,7 @@ static void init_display (void)
   g_state.display.row_tick_end =
     g_state.display.row_tick_start + DISPLAY_TICKS_PER_ROW;
 
-  font_char_to_frame(1, &g_state.display.cur_frame);
+  font_char_to_frame(0, &g_state.display.cur_frame);
 }
 
 static void loop (void)
